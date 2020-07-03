@@ -132,7 +132,7 @@ def run_pipeline(args: object):
             if args.run_id is not None:
                 optional_values = f"{optional_values} -id {str(args.run_id)}"
             process: subprocess.Popen = subprocess.Popen(
-                f"./pipeline.py -pre {str(args.pre_script)} -per {str(args.per_script)} -post{str(args.post_script)} -meta {str(args.run_metadata)} -reads {str(args.reads_folder)} {optional_values}",
+                f"./pipeline.py -pre {str(args.pre_script)} -per {str(args.per_sample_script)} -post{str(args.post_script)} -meta {str(args.run_metadata)} -reads {str(args.reads_folder)} {optional_values}",
                 stdout=sys.stdout,
                 stderr=sys.stderr,
                 shell=True
