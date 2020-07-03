@@ -75,7 +75,7 @@ def parse_args():
         show_info()
     elif args.install:
         install_component()
-    elif args.sample_id is not None:
+    else:
         run_pipeline(args)
 
 
@@ -111,7 +111,6 @@ def run_pipeline(args: object):
     """
     Runs pipeline
     """
-    sample: list[dict] = datahandling.get_samples(sample_ids=[args.sample_id])
     component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']], component_versions=[COMPONENT['version']])
     if len(component) == 0:
         print(f"component not found in DB, installing it:")
