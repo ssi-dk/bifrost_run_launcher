@@ -211,16 +211,6 @@ def setup_run(args: object) -> str:
         with open("samples.yaml", "w") as fh:
             for sample in samples:
                 fh.write(pprint.pformat(sample.display()))
-        try:
-            process: subprocess.Popen = subprocess.Popen(
-                f"bash run_script.sh",
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                shell=True
-            )
-            process.communicate()
-        except:
-            print(traceback.format_exc())
 
 if __name__ == "__main__":
     parse_args()
