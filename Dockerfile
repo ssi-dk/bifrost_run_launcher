@@ -1,5 +1,5 @@
 # This is intended to run in Github Actions
-FROM ubuntu-latest
+FROM ubuntu:latest
 
 ARG name="bifrost-run_launcher"
 ARG code_version
@@ -30,7 +30,7 @@ RUN \
 #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------
-ENV PATH /bifrost/${name}/:$PATH
+ENV PATH /bifrost/src/:$PATH
 ENTRYPOINT ["src/launcher.py"]
 CMD ["src/launcher.py", "--help"]
 #- Set up entry point:end --------------------------------------------------------------------------
