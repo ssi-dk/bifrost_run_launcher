@@ -1,6 +1,10 @@
+# Notes:
+#   Values in <value> are modified by CI/CD automation. Please see github/workflows for more info
 #-Basic info----------------------------------------------------------------------------------------
 name: run_launcher
-version: 2.0.7
+version:
+  code: <code_version>
+  resource: <resource_version>
 note: >
   Currently run components aren't set up properly (probably want to call them collection components)
   values here are not being used properly. I think the idea for run components is that you don't 
@@ -14,7 +18,7 @@ note: >
 
 #-Details-------------------------------------------------------------------------------------------
 details:
-  schema_version: 2.0.7
+  schema_version: 2.0
   target: run
   type: pipeline
   recommendation: recommended
@@ -22,8 +26,15 @@ details:
     Processes a folder for running in bifrost
 #---------------------------------------------------------------------------------------------------
 
-#-Docker location-----------------------------------------------------------------------------------
-dockerfile: &dockerfile "docker://ssidk/bifrost-run_launcher:2.0.7"
+#-Install-------------------------------------------------------------------------------------------
+install:
+  path: # Set by install program
+  dockerfile: docker://ssidk/bifrost-run_launcher:<version>
+# None
+#---------------------------------------------------------------------------------------------------
+
+#-Category info-------------------------------------------------------------------------------------
+category: []
 #---------------------------------------------------------------------------------------------------
 
 #-Options-------------------------------------------------------------------------------------------
