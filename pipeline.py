@@ -11,6 +11,7 @@ import pandas
 import traceback
 import json
 import subprocess
+import datetime
 from bifrostlib import datahandling
 from bifrostlib import mongo_interface
 import pprint
@@ -107,6 +108,10 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
             sample_info = datahandling.Category(name="sample_info")
             # This statement is a bit hacky, it converts to json and decodes json. This is chosen over .to_dict as that maintains numpy datatypes and I want python data types
             metadata_dict = json.loads(df.iloc[df[df[sample_key] == sample].index[0]].to_json())
+            #HACK: Fix to bring dates as datetime
+            for key, value in metadata_dict:
+                if key.toupper().endswith("DATE") and value is not None:
+                    metadata_dict[key] = convert_to_datetime(value)
             sample_info.set_summary(metadata_dict)
             sampleObj.set_properties_sample_info(sample_info)
             sampleObj.save()
@@ -132,6 +137,15 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
     # df.to_csv("test.txt")
 
     return (run, samples)
+
+
+def convert_to_datetime(text: str, date_formats: list[str] = ['d-%m-%y', '%d.%m.%Y', '%d/%m/%Y']):
+    for date_format in date_formats:
+        try:
+            return datetime.datetime.strptime(text, date_format)
+        except ValueError:
+            pass
+    raise ValueError('Date format not found or invalid')
 
 
 def replace_run_info_in_script(script: str, run: object) -> str:
