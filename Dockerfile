@@ -1,5 +1,5 @@
 # This is intended to run in Github Actions
-FROM ubuntu:latest
+FROM python:latest
 
 ARG name="bifrost-run_launcher"
 ARG code_version
