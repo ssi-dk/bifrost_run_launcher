@@ -25,9 +25,9 @@ COPY src /bifrost/src
 #COPY resources /bifrost/resources
 RUN \
     pip install -q bifrostlib==2.0.7; \
-    sed 's/<code_version>/'"${code_version}"'/1' /bifrost/src/config.yaml \
-    sed 's/<resource_version>/'"${resource_version}"'/1' /bifrost/src/config.yaml 
-#- Source code:end ---------------------------------------------------------------------------------
+    sed 's/<code_version>/'"${code_version}"'/1' /bifrost/src/config.yaml > /bifrost/src/config.yaml; \
+    sed 's/<resource_version>/'"${resource_version}"'/1' /bifrost/src/config.yaml > /bifrost/src/config.yaml;
+    #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------
 ENV PATH /bifrost/src/:$PATH
