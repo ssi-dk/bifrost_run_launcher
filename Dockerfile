@@ -1,5 +1,5 @@
 # This is intended to run in Github Actions
-FROM python:latest
+FROM continuumio/miniconda3:4.7.10
 
 ARG name="bifrost-run_launcher"
 ARG code_version
