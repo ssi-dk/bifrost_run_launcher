@@ -24,9 +24,7 @@ def parse_args():
         f"*Run command************************************\n"
         f"docker run \ \n"
         f" -e BIFROST_DB_KEY=mongodb://<user>:<password>@<server>:<port>/<db_name> \ \n"
-        f" -v <input_path>:/input \ \n"
-        f" -v <output_path>:/output \ \n"
-        f" {COMPONENT['dockerfile']} \ \n"
+        f" {COMPONENT['install']['dockerfile']} \ \n"
         f"************************************************\n"
     )
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -94,16 +92,18 @@ def show_info():
 
 
 def install_component():
-    component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']], component_versions=[COMPONENT['version']])
+    component: list[dict] = datahandling.get_components(component_names=[COMPONENT['full_name']])
     if len(component) == 1:
         print(f"Component has already been installed")
     elif len(component) > 1:
         print(f"Component exists multiple times in DB, please contact an admin to fix this in order to proceed")
     else:
+        #HACK: Installs based on your current directory currently. Should be changed to the directory your docker/singularity file is
+        COMPONENT['install']['path'] = os.path.os.getcwd()
         datahandling.post_component(COMPONENT)
-        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']], component_versions=[COMPONENT['version']])
+        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['full_name']])
         if len(component) != 1:
-            print(f"Error with installation of {COMPONENT['name']} v:{COMPONENT['version']} \n")
+            print(f"Error with installation of {COMPONENT['full_name']}\n")
             exit()
 
 
@@ -111,13 +111,13 @@ def run_pipeline(args: object):
     """
     Runs pipeline
     """
-    component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']], component_versions=[COMPONENT['version']])
+    component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
     if len(component) == 0:
         print(f"component not found in DB, installing it:")
         datahandling.post_component(COMPONENT)
-        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']], component_versions=[COMPONENT['version']])
+        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
         if len(component) != 1:
-            print(f"Error with installation of {COMPONENT['name']} v:{COMPONENT['version']} \n")
+            print(f"Error with installation of {COMPONENT['full_name']}\n")
             exit()
 
     else:

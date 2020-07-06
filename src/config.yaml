@@ -2,6 +2,7 @@
 #   Values in <value> are modified by CI/CD automation. Please see github/workflows for more info
 #-Basic info----------------------------------------------------------------------------------------
 name: run_launcher
+full_name: run_launcher__<code_version>__<resource_version>
 version:
   code: <code_version>
   resource: <resource_version>
@@ -29,7 +30,7 @@ details:
 #-Install-------------------------------------------------------------------------------------------
 install:
   path: # Set by install program
-  dockerfile: docker://ssidk/bifrost-run_launcher:<code_version>
+  dockerfile: docker://ssidk/bifrost-run_launcher:<code_version>__<resource_version>
 # None
 #---------------------------------------------------------------------------------------------------
 
