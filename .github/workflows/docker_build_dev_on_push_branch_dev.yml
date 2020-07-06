@@ -16,4 +16,4 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }} # optional
         repository: ssidk/${{ github.event.repository.name }}
         tags: dev
-        build_args: code_version=master,resource_version
+        build_args: code_version=dev,resource_version
