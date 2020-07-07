@@ -28,10 +28,10 @@ RUN \
     pip install bifrostlib==2.0.7; \
     if [ "${environment}" = "dev" ] \
     then \
-        pip install pytest; \
-        pip install pytest-cov; \
-        pip install pytest-profiling; \
-        pip install coverage; \
+        pip install pytest \
+        pip install pytest-cov \
+        pip install pytest-profiling \
+        pip install coverage \
     else \
         echo ${environment} \
     fi \
