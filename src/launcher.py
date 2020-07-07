@@ -35,10 +35,13 @@ def parse_args():
                         action='store_true',
                         help='Provides basic information on component')
     parser.add_argument('-pre', '--pre_script',
+                        required=True,
                         help='Pre script template run before sample script')
     parser.add_argument('-per', '--per_sample_script',
+                        required=True,
                         help='Per sample script template run on each sample')
     parser.add_argument('-post', '--post_script',
+                        required=True,
                         help='Post script template run after sample script')
     parser.add_argument('-meta', '--run_metadata',
                         required=True,

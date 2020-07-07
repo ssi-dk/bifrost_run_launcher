@@ -21,7 +21,7 @@ LABEL \
 #- Additional resources (files/DBs): end -----------------------------------------------------------
 
 #- Source code:start -------------------------------------------------------------------------------
-COPY src /bifrost/src
+COPY src /bifrost/
 #COPY resources /bifrost/resources
 RUN \
     pip install -q bifrostlib==2.0.7; \

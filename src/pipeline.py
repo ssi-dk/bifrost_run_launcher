@@ -23,10 +23,13 @@ pp = pprint.PrettyPrinter(indent=4)
 def parse_args() -> object:
     parser: argparse.ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('-pre', '--pre_script',
+                        required=True,
                         help='Pre script template run before sample script')
     parser.add_argument('-per', '--per_sample_script',
+                        required=True,
                         help='Per sample script template run on each sample')
     parser.add_argument('-post', '--post_script',
+                        required=True,
                         help='Post script template run after sample script')
     parser.add_argument('-meta', '--run_metadata',
                         required=True,
@@ -110,7 +113,7 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
             metadata_dict = json.loads(df.iloc[df[df[sample_key] == sample].index[0]].to_json())
             #HACK: Fix to bring dates as datetime
             for key in metadata_dict:
-                if key.toupper().endswith("DATE") and metadata_dict[key] is not None:
+                if key.upper().endswith("DATE") and metadata_dict[key] is not None:
                     metadata_dict[key] = convert_to_datetime(metadata_dict[key])
             sample_info.set_summary(metadata_dict)
             sampleObj.set_properties_sample_info(sample_info)
