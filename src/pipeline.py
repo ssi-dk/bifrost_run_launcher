@@ -109,9 +109,9 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
             # This statement is a bit hacky, it converts to json and decodes json. This is chosen over .to_dict as that maintains numpy datatypes and I want python data types
             metadata_dict = json.loads(df.iloc[df[df[sample_key] == sample].index[0]].to_json())
             #HACK: Fix to bring dates as datetime
-            for key, value in metadata_dict:
-                if key.toupper().endswith("DATE") and value is not None:
-                    metadata_dict[key] = convert_to_datetime(value)
+            for key in metadata_dict:
+                if key.toupper().endswith("DATE") and metadata_dict[key] is not None:
+                    metadata_dict[key] = convert_to_datetime(metadata_dict[key])
             sample_info.set_summary(metadata_dict)
             sampleObj.set_properties_sample_info(sample_info)
             sampleObj.save()
