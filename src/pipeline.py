@@ -200,12 +200,12 @@ def generate_run_script(run: object, samples: object, pre_script_location: str, 
     return script
 
 
-def setup_run(args: object) -> str:
+def setup_run(args: object) -> None:
     run_name = args.run_name
     if run_name is None:
         run_name = os.getcwd().split("/")[-1]
     runs = mongo_interface.get_runs(names=[run_name])
-    print(run_name)
+    # print(run_name)
     if len(runs) > 0:
         print(run_name+" already in DB, please correct before attempting to run again")
     else:
