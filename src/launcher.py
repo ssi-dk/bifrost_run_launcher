@@ -96,12 +96,13 @@ def show_info():
 
 def install_component():
     component: list[dict] = datahandling.get_components(component_names=[COMPONENT['full_name']])
-    if len(component) == 1:
-        print(f"Component has already been installed")
-    elif len(component) > 1:
+    # if len(component) == 1:
+    #     print(f"Component has already been installed")
+    if len(component) > 1:
         print(f"Component exists multiple times in DB, please contact an admin to fix this in order to proceed")
     else:
         #HACK: Installs based on your current directory currently. Should be changed to the directory your docker/singularity file is
+        #HACK: Removed install check so you can reinstall the component. Should do this in a nicer way
         COMPONENT['install']['path'] = os.path.os.getcwd()
         datahandling.post_component(COMPONENT)
         component: list[dict] = datahandling.get_components(component_names=[COMPONENT['full_name']])
