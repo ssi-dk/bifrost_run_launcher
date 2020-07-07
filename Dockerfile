@@ -26,7 +26,15 @@ LABEL \
 COPY src /bifrost/src
 RUN \
     pip install bifrostlib==2.0.7; \
-    if [ "${environment}" = "dev" ] ; then pip install pytest pytest-cov pytest-profiling coverage; fi \
+    if [ "${environment}" = "dev" ]; \
+    then; \
+        pip install pytest; \
+        pip install pytest-cov; \
+        pip install pytest-profiling; \
+        pip install coverage; \
+    else; \
+        echo ${environment}; \
+    fi; \
     sed -i'' 's/<code_version>/'"${code_version}"'/g' /bifrost/src/config.yaml; \
     sed -i'' 's/<resource_version>/'"${resource_version}"'/g' /bifrost/src/config.yaml;
 #- Source code:end ---------------------------------------------------------------------------------
