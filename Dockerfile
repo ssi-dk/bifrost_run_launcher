@@ -8,6 +8,7 @@ ONBUILD RUN pip install pytest \
                         pytest-cov \
                         pytest-profiling \
                         coverage;
+ONBUILD COPY tests /bifrost/tests
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD RUN echo ${BUILD_ENV}
