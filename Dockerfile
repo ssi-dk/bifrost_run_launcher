@@ -10,13 +10,12 @@ ONBUILD RUN pip install pytest \
                         coverage;
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
-ONBUILD RUN command
+ONBUILD RUN echo ${BUILD_ENV}
 
 FROM build_${BUILD_ENV}
 ARG NAME="bifrost-run_launcher"
 ARG CODE_VERSION
 ARG RESOURCE_VERSION
-ARG BUILD_ENV
 
 LABEL \
     name=${NAME} \
