@@ -2,14 +2,6 @@ name: Tests
 
 on:
   workflow_dispatch:
-    inputs:
-      name:
-        description: 'Person to greet'
-        required: true
-        default: 'Mona the Octocat'
-      home:
-        description: 'location'
-        required: false
 
 jobs:
   deploy:
@@ -30,7 +22,7 @@ jobs:
         pip install setuptools wheel twine
     - name: Build docker image
       run: |
-        docker build run_launcher .
+        docker build -t run_launcher .
     - name: Run_tests
       run: |
         docker exec --user root run_launcher python3 -m pytest -v  --doctest-modules --junitxml=junit/test-results.xml --cov=minilims --cov-report=xml --cov-report=html
