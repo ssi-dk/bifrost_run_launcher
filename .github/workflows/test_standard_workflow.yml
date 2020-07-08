@@ -24,11 +24,11 @@ jobs:
     - name: Run_tests
       run: >
           docker run 
-          --entry-point "python3 -m pytest 
+          --entry-point \"python3 -m pytest 
                                  -v --doctest-modules 
                                  --junitxml=junit/test-results.xml 
                                  --cov=minilims --cov-report=xml 
                                  --cov-report=html
-                                 /bifrost/tests/" 
+                                 /bifrost/tests/\" 
           -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_run_launcher_test 
           run_launcher 
