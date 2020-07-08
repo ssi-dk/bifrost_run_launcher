@@ -22,8 +22,7 @@ jobs:
       run: |
         docker build --build-arg BUILD_ENV=dev -t run_launcher .
     - name: Run_tests
-      run: |
-        - >
+      run: >
           docker run 
           --entry-point "python3 -m pytest 
                                  -v --doctest-modules 
