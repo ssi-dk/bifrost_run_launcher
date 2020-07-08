@@ -1,17 +1,29 @@
 # This is intended to run in Github Actions
-FROM continuumio/miniconda3:4.7.10
+# Arg can be set to dev for testing purposes
+ARG BUILD_ENV="prod"
 
-ARG name="bifrost-run_launcher"
-ARG code_version
-ARG resource_version
-ARG environment
+#For dev build include testing modules
+FROM continuumio/miniconda3:4.7.10 as build_dev
+ONBUILD RUN pip install pytest \
+                        pytest-cov \
+                        pytest-profiling \
+                        coverage;
+
+FROM continuumio/miniconda3:4.7.10 as build_prod
+ONBUILD RUN command
+
+FROM build_${BUILD_ENV}
+ARG NAME="bifrost-run_launcher"
+ARG CODE_VERSION
+ARG RESOURCE_VERSION
+ARG BUILD_ENV
 
 LABEL \
-    name=${name} \
-    description="Docker environment for ${name}" \
-    code_version="${code_version}" \
-    resource_version="${resource_version}" \
-    environment="${environment}" \
+    name=${NAME} \
+    description="Docker environment for ${NAME}" \
+    code_version="${CODE_VERSION}" \
+    resource_version="${RESOURCE_VERSION}" \
+    environment="${BUILD_ENV}" \
     maintainer="kimn@ssi.dk;"
 
 #- Tools to install:start---------------------------------------------------------------------------
@@ -26,17 +38,8 @@ LABEL \
 COPY src /bifrost/src
 RUN \
     pip install bifrostlib==2.0.7; \
-    if [ "${environment}" = "dev" ]; \
-    then \
-        pip install pytest \
-                    pytest-cov \
-                    pytest-profiling \
-                    coverage; \
-    else \
-        echo ${environment}; \
-    fi; \
-    sed -i'' 's/<code_version>/'"${code_version}"'/g' /bifrost/src/config.yaml; \
-    sed -i'' 's/<resource_version>/'"${resource_version}"'/g' /bifrost/src/config.yaml;
+    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /bifrost/src/config.yaml; \
+    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /bifrost/src/config.yaml;
 #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------

@@ -7,9 +7,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - run: |
-        echo "Hello ${{ github.event.inputs.name }}!"
-        echo "- in ${{ github.event.inputs.home }}!"
+
     - name: Checkout
       uses: actions/checkout@v2
     - name: Set up Python
@@ -22,7 +20,8 @@ jobs:
         pip install setuptools wheel twine
     - name: Build docker image
       run: |
-        docker build -t run_launcher .
+        docker build --build-arg BUILD_ENV=dev -t run_launcher .
     - name: Run_tests
       run: |
+        docker run --entry-point "python 3 -m pytest -v" -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_run_launcher_test run_launcher 
         docker exec --user root run_launcher python3 -m pytest -v  --doctest-modules --junitxml=junit/test-results.xml --cov=minilims --cov-report=xml --cov-report=html

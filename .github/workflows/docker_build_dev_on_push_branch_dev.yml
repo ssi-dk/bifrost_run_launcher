@@ -1,5 +1,6 @@
 name: Build and push Docker images
 on:
+  workflow_dispatch:
   push:
     branches:
       - dev
@@ -16,4 +17,4 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }} # optional
         repository: ssidk/${{ github.event.repository.name }}
         tags: dev
-        build_args: code_version=dev,resource_version
+        build_args:  CODE_VERSION=dev,RESOURCE_VERSION=
