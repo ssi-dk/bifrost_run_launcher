@@ -14,43 +14,45 @@ import subprocess
 import datetime
 from bifrostlib import datahandling
 from bifrostlib import mongo_interface
+from typing import Tuple
 import pprint
 
 os.umask(0o2)
 pp = pprint.PrettyPrinter(indent=4)
 
 
-def parse_args() -> object:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    parser.add_argument('-pre', '--pre_script',
-                        required=True,
-                        help='Pre script template run before sample script')
-    parser.add_argument('-per', '--per_sample_script',
-                        required=True,
-                        help='Per sample script template run on each sample')
-    parser.add_argument('-post', '--post_script',
-                        required=True,
-                        help='Post script template run after sample script')
-    parser.add_argument('-meta', '--run_metadata',
-                        required=True,
-                        help='Run metadata tsv')
-    parser.add_argument('-reads', '--reads_folder',
-                        required=True,
-                        help='Run metadata tsv')
-    parser.add_argument('-name', '--run_name',
-                        default=None,
-                        help='Run name, if not provided it will default to current folder name')
-    parser.add_argument('-type', '--run_type',
-                        default=None,
-                        help='Run type for metadata organization')
-    parser.add_argument('-metamap', '--run_metadata_column_remap',
-                        help='Remaps metadata tsv columns to bifrost values')
-    args: argparse.Namespace = parser.parse_args()
+# def parse_args(args) -> object:
+#     parser: argparse.ArgumentParser = argparse.ArgumentParser()
+#     parser.add_argument('-pre', '--pre_script',
+#                         required=True,
+#                         help='Pre script template run before sample script')
+#     parser.add_argument('-per', '--per_sample_script',
+#                         required=True,
+#                         help='Per sample script template run on each sample')
+#     parser.add_argument('-post', '--post_script',
+#                         required=True,
+#                         help='Post script template run after sample script')
+#     parser.add_argument('-meta', '--run_metadata',
+#                         required=True,
+#                         help='Run metadata tsv')
+#     parser.add_argument('-reads', '--reads_folder',
+#                         required=True,
+#                         help='Run metadata tsv')
+#     parser.add_argument('-name', '--run_name',
+#                         default=None,
+#                         help='Run name, if not provided it will default to current folder name')
+#     parser.add_argument('-type', '--run_type',
+#                         default=None,
+#                         help='Run type for metadata organization')
+#     parser.add_argument('-metamap', '--run_metadata_column_remap',
+#                         default=None,
+#                         help='Remaps metadata tsv columns to bifrost values')
+#     parser_args: argparse.Namespace = parser.parse_args()
 
-    setup_run(args)
+#     setup_run(parser_args)
 
 
-def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file = None, regex_pattern: str ="^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> object:
+def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None, regex_pattern: str ="^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> Tuple:
     all_items_in_dir = os.listdir(input_folder)
     potential_samples = [(i, re.search(regex_pattern,i).group("sample_name"),  re.search(regex_pattern,i).group("paired_read_number")) for i in all_items_in_dir if re.search(regex_pattern,i)]
     potential_samples.sort()
@@ -80,7 +82,7 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
             unused_files.pop(unused_files.index(run_metadata))
 
     df = pandas.read_table(run_metadata)
-    if rename_column_file != None:
+    if rename_column_file is not None:
         with open(rename_column_file, "r") as rename_file:
             df = df.rename(columns=json.load(rename_file))
     sample_key = "sample_name"
@@ -200,7 +202,7 @@ def generate_run_script(run: object, samples: object, pre_script_location: str, 
     return script
 
 
-def setup_run(args: object) -> None:
+def run_pipeline(args: object) -> None:
     run_name = args.run_name
     if run_name is None:
         run_name = os.getcwd().split("/")[-1]
@@ -213,8 +215,9 @@ def setup_run(args: object) -> None:
             run_name,
             input_folder=args.reads_folder,
             run_metadata=args.run_metadata,
-            rename_column_file=args.run_metadata_column_remap,
-            run_type=args.run_type)
+            run_type=args.run_type,
+            rename_column_file=args.run_metadata_column_remap
+            )
         script = generate_run_script(
             run,
             samples,
@@ -229,5 +232,5 @@ def setup_run(args: object) -> None:
             for sample in samples:
                 fh.write(pprint.pformat(sample.display()))
 
-if __name__ == "__main__":
-    parse_args()
+# if __name__ == "__main__":
+#     parse_args(sys.argv[1:])

@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  bifrost_launcher:
+    image: bifrost_launcher
+    build:
+      context: .
+      args:
+        BUILD_ENV: dev
+    env_file:
+      - .mongodb_dev_keys.env
+    volumes:
+    - .:/bifrost/
+    entrypoint: "bash"
+    stdin_open: true # kept open to keep image running

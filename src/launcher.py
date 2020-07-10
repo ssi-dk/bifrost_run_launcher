@@ -9,11 +9,13 @@ import os
 import sys
 import traceback
 from bifrostlib import datahandling
+from src import pipeline
+
 
 COMPONENT: dict = datahandling.load_yaml(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 
 
-def parse_args():
+def parser():
     """
     Arg parsing via argparse
     """
@@ -35,19 +37,14 @@ def parse_args():
                         action='store_true',
                         help='Provides basic information on component')
     parser.add_argument('-pre', '--pre_script',
-                        required=True,
                         help='Pre script template run before sample script')
     parser.add_argument('-per', '--per_sample_script',
-                        required=True,
                         help='Per sample script template run on each sample')
     parser.add_argument('-post', '--post_script',
-                        required=True,
                         help='Post script template run after sample script')
     parser.add_argument('-meta', '--run_metadata',
-                        required=True,
                         help='Run metadata tsv')
     parser.add_argument('-reads', '--reads_folder',
-                        required=True,
                         help='Run metadata tsv')
     parser.add_argument('-name', '--run_name',
                         default=None,
@@ -56,13 +53,15 @@ def parse_args():
                         default=None,
                         help='Run type for metadata organization')
     parser.add_argument('-metamap', '--run_metadata_column_remap',
+                        default=None,
                         help='Remaps metadata tsv columns to bifrost values')
     #TODO: Put code in to utilize ID
     parser.add_argument('-id', '--run_id',
                         help='For re-running a run') 
+    return parser
 
-    args: argparse.Namespace = parser.parse_args()
 
+def run_program(args: argparse.Namespace):
     if not datahandling.check_db_connection_exists():
         message: str = (
             f"ERROR: Connection to DB not establised.\n"
@@ -95,7 +94,7 @@ def show_info():
 
 
 def install_component():
-    component: list[dict] = datahandling.get_components(component_names=[COMPONENT['full_name']])
+    component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
     # if len(component) == 1:
     #     print(f"Component has already been installed")
     if len(component) > 1:
@@ -105,9 +104,9 @@ def install_component():
         #HACK: Removed install check so you can reinstall the component. Should do this in a nicer way
         COMPONENT['install']['path'] = os.path.os.getcwd()
         datahandling.post_component(COMPONENT)
-        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['full_name']])
+        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
         if len(component) != 1:
-            print(f"Error with installation of {COMPONENT['full_name']}\n")
+            print(f"Error with installation of {COMPONENT['name']} {len(component)}\n")
             exit()
 
 
@@ -121,7 +120,7 @@ def run_pipeline(args: object):
         datahandling.post_component(COMPONENT)
         component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
         if len(component) != 1:
-            print(f"Error with installation of {COMPONENT['full_name']}\n")
+            print(f"Error with installation of {COMPONENT['name']}\n")
             exit()
 
     else:
@@ -135,16 +134,11 @@ def run_pipeline(args: object):
                 optional_values = f"{optional_values} -metamap {str(args.run_metadata_column_remap)}"
             if args.run_id is not None:
                 optional_values = f"{optional_values} -id {str(args.run_id)}"
-            process: subprocess.Popen = subprocess.Popen(
-                f"/bifrost/src/pipeline.py -pre {str(args.pre_script)} -per {str(args.per_sample_script)} -post {str(args.post_script)} -meta {str(args.run_metadata)} -reads {str(args.reads_folder)} {optional_values}",
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                shell=True
-            )
-            process.communicate()
+            pipeline.run_pipeline(args)
         except:
             print(traceback.format_exc())
 
 
 if __name__ == '__main__':
-    parse_args()
+    args: argparse.Namespace = parser().parse_args()
+    run_program(args)

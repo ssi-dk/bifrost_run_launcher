@@ -1,23 +1,23 @@
 # This is intended to run in Github Actions
 # Arg can be set to dev for testing purposes
 ARG BUILD_ENV="prod"
+ARG NAME="bifrost-run_launcher"
+ARG CODE_VERSION="unspecified"
+ARG RESOURCE_VERSION="unspecified"
 
 #For dev build include testing modules
 FROM continuumio/miniconda3:4.7.10 as build_dev
 ONBUILD RUN pip install pytest \
-                        pytest-cov \
-                        pytest-profiling \
-                        coverage;
+    pytest-cov \
+    pytest-profiling \
+    coverage;
 ONBUILD COPY tests /bifrost/tests
+ONBUILD COPY examples /bifrost/examples
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD RUN echo ${BUILD_ENV}
 
 FROM build_${BUILD_ENV}
-ARG NAME="bifrost-run_launcher"
-ARG CODE_VERSION
-ARG RESOURCE_VERSION
-
 LABEL \
     name=${NAME} \
     description="Docker environment for ${NAME}" \
@@ -39,8 +39,9 @@ COPY src /bifrost/src
 RUN \
     pip install bifrostlib==2.0.7; \
     sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /bifrost/src/config.yaml; \
-    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /bifrost/src/config.yaml;
-#- Source code:end ---------------------------------------------------------------------------------
+    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /bifrost/src/config.yaml; \
+    echo "done";
+    #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------
 ENV PATH /bifrost/src/:$PATH

@@ -7,7 +7,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-
     - name: Checkout
       uses: actions/checkout@v2
     - name: Set up Python
@@ -24,13 +23,6 @@ jobs:
     - name: Run_tests
       run: >
           docker run 
-          --entrypoint 
-            "python3 -m pytest 
-              -v --doctest-modules 
-              --junitxml=junit/test-results.xml 
-              --cov=minilims 
-              --cov-report=xml 
-              --cov-report=html 
-              /bifrost/tests/" 
+          --entrypoint "cd bifrost; python3 -m pytest" 
           -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_run_launcher_test 
           run_launcher 

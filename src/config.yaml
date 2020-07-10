@@ -1,11 +1,11 @@
 # Notes:
 #   Values in <value> are modified by CI/CD automation. Please see github/workflows for more info
 #-Basic info----------------------------------------------------------------------------------------
-name: run_launcher
-full_name: run_launcher__<code_version>__<resource_version>
+display_name: run_launcher
+name: run_launcher__unspecified__unspecified
 version:
-  code: <code_version>
-  resource: <resource_version>
+  code: unspecified
+  resource: unspecified
 note: >
   Currently run components aren't set up properly (probably want to call them collection components)
   values here are not being used properly. I think the idea for run components is that you don't 
@@ -30,7 +30,7 @@ details:
 #-Install-------------------------------------------------------------------------------------------
 install:
   path: # Set by install program
-  dockerfile: docker://ssidk/bifrost-run_launcher:<code_version>__<resource_version>
+  dockerfile: docker://ssidk/bifrost-run_launcher:unspecified__unspecified
 # None
 #---------------------------------------------------------------------------------------------------
 
