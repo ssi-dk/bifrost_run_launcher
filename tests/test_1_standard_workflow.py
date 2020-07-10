@@ -2,7 +2,7 @@ import os
 import pymongo
 import pytest
 import argparse
-from src import launcher
+from bifrost.src import launcher
 
 @pytest.fixture
 def mydb():
