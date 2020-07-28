@@ -26,7 +26,8 @@ jobs:
     - name: Run_tests
       run: >
           docker run 
+          -w /bifrost
           --entrypoint "python3"
           -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_run_launcher_test 
           run_launcher 
-          -m pytest /bifrost
+          -m pytest
