@@ -45,6 +45,6 @@ RUN \
 
 #- Set up entry point:start ------------------------------------------------------------------------
 ENV PATH /bifrost/src/:$PATH
-ENTRYPOINT ["/bifrost/src/launcher.py"]
-CMD ["/bifrost/src/launcher.py", "--help"]
+ENTRYPOINT ["launcher.py"]
+CMD ["launcher.py", "--help"]
 #- Set up entry point:end --------------------------------------------------------------------------
