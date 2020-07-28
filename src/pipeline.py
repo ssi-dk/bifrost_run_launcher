@@ -82,67 +82,71 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
             unused_files.pop(unused_files.index(run_metadata))
 
     df = pandas.read_table(run_metadata)
-    if rename_column_file is not None:
-        with open(rename_column_file, "r") as rename_file:
-            df = df.rename(columns=json.load(rename_file))
-    sample_key = "sample_name"
-    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-    samples_no_index = df[df[sample_key].isna()].index
-    df = df.drop(samples_no_index)
-    df[sample_key] = df[sample_key].astype('str')
-    df["temp_sample_name"] = df[sample_key]
-    df[sample_key] = df[sample_key].apply(lambda x: x.strip())
-    df[sample_key] = df[sample_key].str.replace(re.compile("[^a-zA-Z0-9\-\_]"),"_")
-    df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
-    df["duplicated_sample_names"] = df.duplicated(subset=sample_key,keep="first")
-    valid_sample_names = list(set(df[sample_key].tolist()))
-    df["haveReads"] = False
-    df["haveMetaData"] = True
+    #HACK Doing this cause I haven't set up error handling properly yet so printing pandas DataFrame when I need
+    try:
+        if rename_column_file is not None:
+            with open(rename_column_file, "r") as rename_file:
+                df = df.rename(columns=json.load(rename_file))
+        sample_key = "sample_name"
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        samples_no_index = df[df[sample_key].isna()].index
+        df = df.drop(samples_no_index)
+        df[sample_key] = df[sample_key].astype('str')
+        df["temp_sample_name"] = df[sample_key]
+        df[sample_key] = df[sample_key].apply(lambda x: x.strip())
+        df[sample_key] = df[sample_key].str.replace(re.compile("[^a-zA-Z0-9\-\_]"),"_")
+        df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
+        df["duplicated_sample_names"] = df.duplicated(subset=sample_key,keep="first")
+        valid_sample_names = list(set(df[sample_key].tolist()))
+        df["haveReads"] = False
+        df["haveMetaData"] = True
 
-    samples = []
-    run = datahandling.Run(name=run_name)
+        samples = []
+        run = datahandling.Run(name=run_name)
 
-    for sample in sample_dict:
-        if sample in valid_sample_names:
-            df.loc[df[sample_key] == sample, "haveMetaData"] = True
-            df.loc[df[sample_key] == sample, "haveReads"] = True
-            sampleObj = datahandling.Sample(name=sample)
-            datafiles = datahandling.Category(name="paired_reads")
-            datafiles.set_summary({"data": [os.path.abspath(os.path.join(input_folder, sample_dict[sample][0])), os.path.abspath(os.path.join(input_folder, sample_dict[sample][1]))]})
-            sampleObj.set_properties_paired_reads(datafiles)
-            sample_info = datahandling.Category(name="sample_info")
-            # This statement is a bit hacky, it converts to json and decodes json. This is chosen over .to_dict as that maintains numpy datatypes and I want python data types
-            metadata_dict = json.loads(df.iloc[df[df[sample_key] == sample].index[0]].to_json())
-            #HACK: Fix to bring dates as datetime
-            for key in metadata_dict:
-                if key.upper().endswith("DATE") and metadata_dict[key] is not None:
-                    metadata_dict[key] = convert_to_datetime(metadata_dict[key])
-            sample_info.set_summary(metadata_dict)
-            sampleObj.set_properties_sample_info(sample_info)
-            sampleObj.save()
-            # pp.pprint(sampleObj.display())
-            samples.append(sampleObj)
-        else:
-            new_row_df = pandas.DataFrame({'sample_name':[sample], 'haveReads':[True], 'haveMetaData':[False]})
-            df = df.append(new_row_df, ignore_index=True, sort=False)
+        for sample in sample_dict:
+            if sample in valid_sample_names:
+                df.loc[df[sample_key] == sample, "haveMetaData"] = True
+                df.loc[df[sample_key] == sample, "haveReads"] = True
+                sampleObj = datahandling.Sample(name=sample)
+                datafiles = datahandling.Category(name="paired_reads")
+                datafiles.set_summary({"data": [os.path.abspath(os.path.join(input_folder, sample_dict[sample][0])), os.path.abspath(os.path.join(input_folder, sample_dict[sample][1]))]})
+                sampleObj.set_properties_paired_reads(datafiles)
+                sample_info = datahandling.Category(name="sample_info")
+                # This statement is a bit hacky, it converts to json and decodes json. This is chosen over .to_dict as that maintains numpy datatypes and I want python data types
+                metadata_dict = json.loads(df.iloc[df[df[sample_key] == sample].index[0]].to_json())
+                #HACK: Fix to bring dates as datetime
+                for key in metadata_dict:
+                    if key.upper().endswith("DATE") and metadata_dict[key] is not None:
+                        metadata_dict[key] = convert_to_datetime(metadata_dict[key])
+                sample_info.set_summary(metadata_dict)
+                sampleObj.set_properties_sample_info(sample_info)
+                sampleObj.save()
+                # pp.pprint(sampleObj.display())
+                samples.append(sampleObj)
+            else:
+                new_row_df = pandas.DataFrame({'sample_name':[sample], 'haveReads':[True], 'haveMetaData':[False]})
+                df = df.append(new_row_df, ignore_index=True, sort=False)
 
-    run.set_type(run_type)
-    run.set_path(os.getcwd())
-    run.set_samples(samples)
-    run.set_issues(
-        duplicate_samples = list(df[df['duplicated_sample_names']==True]['sample_name']),
-        modified_samples = list(df[df['changed_sample_names']==True]['sample_name']),
-        unused_files = unused_files,
-        samples_without_reads = list(df[df['haveReads']==False]['sample_name']),
-        samples_without_metadata = list(df[df['haveMetaData']==False]['sample_name'])
-    )
-    # Note when you save the run you create the ID's
-    run.save() 
-    # pp.pprint(run.display())
-    # df.to_csv("test.txt")
+        run.set_type(run_type)
+        run.set_path(os.getcwd())
+        run.set_samples(samples)
+        run.set_issues(
+            duplicate_samples = list(df[df['duplicated_sample_names']==True]['sample_name']),
+            modified_samples = list(df[df['changed_sample_names']==True]['sample_name']),
+            unused_files = unused_files,
+            samples_without_reads = list(df[df['haveReads']==False]['sample_name']),
+            samples_without_metadata = list(df[df['haveMetaData']==False]['sample_name'])
+        )
+        # Note when you save the run you create the ID's
+        run.save() 
+        # pp.pprint(run.display())
+        # df.to_csv("test.txt")
 
-    return (run, samples)
-
+        return (run, samples)
+    except:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print(df)
 
 def convert_to_datetime(text: str, date_formats = ['%d-%m-%y', '%d-%m-%Y', '%d/%m/%Y']):
     for date_format in date_formats:

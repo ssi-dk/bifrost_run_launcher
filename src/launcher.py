@@ -9,7 +9,7 @@ import os
 import sys
 import traceback
 from bifrostlib import datahandling
-from bifrost.src import pipeline
+import pipeline
 
 
 COMPONENT: dict = datahandling.load_yaml(os.path.join(os.path.dirname(__file__), 'config.yaml'))
