@@ -1,10 +1,11 @@
 from setuptools import setup, find_packages
 
+
+
 setup(
-    name='bifrost_run_launcher',
-    version='v2.0.8',
-    description='filters read against a small database of interest',
-    url='https://github.com/ssi-dk/bifrost-run_launcher',
+    name='bifrost__run_launcher',
+    version='temp',
+    url='https://github.com/ssi-dk/bifrost__run_launcher',
 
     # Author details
     author='Kim Ng',

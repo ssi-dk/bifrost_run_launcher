@@ -30,7 +30,7 @@ details:
 #-Install-------------------------------------------------------------------------------------------
 install:
   path: # Set by install program
-  dockerfile: docker://ssidk/bifrost-run_launcher:unspecified__unspecified
+  dockerfile: docker://ssidk/bifrost__run_launcher:unspecified__unspecified
 # None
 #---------------------------------------------------------------------------------------------------
 
