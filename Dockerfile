@@ -1,7 +1,7 @@
 # This is intended to run in Github Actions
 # Arg can be set to dev for testing purposes
 ARG BUILD_ENV="prod"
-ARG NAME="bifrost_run_launcher"
+ARG NAME="bifrost__run_launcher"
 ARG CODE_VERSION="unspecified"
 ARG RESOURCE_VERSION="unspecified"
 
