@@ -52,7 +52,7 @@ def parser():
     parser.add_argument('-type', '--run_type',
                         default=None,
                         help='Run type for metadata organization')
-    parser.add_argument('-metamap', '--run_metadata_column_remap',
+    parser.add_argument('-colmap', '--run_metadata_column_remap',
                         default=None,
                         help='Remaps metadata tsv columns to bifrost values')
     #TODO: Put code in to utilize ID
