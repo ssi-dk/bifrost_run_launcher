@@ -2,7 +2,7 @@ import os
 import pymongo
 import pytest
 import argparse
-from src import launcher
+from bifrost_run_launcher import launcher
 
 @pytest.fixture
 def mydb():
@@ -40,10 +40,10 @@ def test_pipeline(mydb, tmp_path):
     p.write_text("text")
     parser = launcher.parser()
     args: argparse.Namespace = parser.parse_args([
-        "-pre", "/bifrost/examples/pre_script.sh",
-        "-per", "/bifrost/examples/per_sample_script.sh",
-        "-post", "/bifrost/examples/post_script.sh",
-        "-meta", "/bifrost/examples/run_metadata.tsv",
+        "-pre", "examples/pre_script.sh",
+        "-per", "examples/per_sample_script.sh",
+        "-post", "examples/post_script.sh",
+        "-meta", "examples/run_metadata.tsv",
         "-reads", str(d),
         "-name", "test_run",
         "-type", "test"

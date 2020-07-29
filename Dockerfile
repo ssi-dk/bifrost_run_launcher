@@ -1,23 +1,26 @@
 # This is intended to run in Github Actions
 # Arg can be set to dev for testing purposes
 ARG BUILD_ENV="prod"
-ARG NAME="bifrost-run_launcher"
+ARG NAME="bifrost_run_launcher"
 ARG CODE_VERSION="unspecified"
 ARG RESOURCE_VERSION="unspecified"
 
 #For dev build include testing modules
 FROM continuumio/miniconda3:4.7.10 as build_dev
+ONBUILD ARG NAME
 ONBUILD RUN pip install pytest \
     pytest-cov \
     pytest-profiling \
     coverage;
-ONBUILD COPY tests /bifrost/tests
-ONBUILD COPY examples /bifrost/examples
+ONBUILD COPY tests /${NAME}/tests
+ONBUILD COPY examples /${NAME}/examples
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
+ONBUILD ARG NAME
 ONBUILD RUN echo ${BUILD_ENV}
 
 FROM build_${BUILD_ENV}
+ARG NAME
 LABEL \
     name=${NAME} \
     description="Docker environment for ${NAME}" \
@@ -35,16 +38,17 @@ LABEL \
 #- Additional resources (files/DBs): end -----------------------------------------------------------
 
 #- Source code:start -------------------------------------------------------------------------------
-COPY src /bifrost/src
+# COPY src /${NAME}/src
+COPY /${NAME} /${NAME}/${NAME}
+COPY setup.py /${NAME}
 RUN \
-    pip install bifrostlib==2.0.7; \
-    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /bifrost/src/config.yaml; \
-    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /bifrost/src/config.yaml; \
-    echo "done";
-    #- Source code:end ---------------------------------------------------------------------------------
+    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
+    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
+    cd /${NAME}; \
+    pip install . 
+#- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------
-ENV PATH /bifrost/src/:$PATH
-ENTRYPOINT ["launcher.py"]
-CMD ["launcher.py", "--help"]
+ENTRYPOINT ["python3 -m bifrost_run_launcher"]
+CMD ["python3 -m bifrost_run_launcher", "--help"]
 #- Set up entry point:end --------------------------------------------------------------------------

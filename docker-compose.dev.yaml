@@ -9,6 +9,6 @@ services:
     env_file:
       - .mongodb_dev_keys.env
     volumes:
-    - .:/bifrost/
+    - .:/bifrost-run_launcher/
     entrypoint: "bash"
     stdin_open: true # kept open to keep image running

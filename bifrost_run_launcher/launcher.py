@@ -9,8 +9,8 @@ import os
 import sys
 import traceback
 from bifrostlib import datahandling
-from src import pipeline
-
+from bifrost_run_launcher import pipeline
+import pkg_resources
 
 COMPONENT: dict = datahandling.load_yaml(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 
@@ -138,7 +138,9 @@ def run_pipeline(args: object):
         except:
             print(traceback.format_exc())
 
-
-if __name__ == '__main__':
+def run():
     args: argparse.Namespace = parser().parse_args()
     run_program(args)
+
+if __name__ == '__main__':
+    run()
