@@ -39,7 +39,7 @@ LABEL \
 
 #- Source code:start -------------------------------------------------------------------------------
 # COPY src /${NAME}/src
-COPY /${NAME} /${NAME}/${NAME}
+COPY ${NAME} /${NAME}/${NAME}
 COPY setup.py /${NAME}
 RUN \
     sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
