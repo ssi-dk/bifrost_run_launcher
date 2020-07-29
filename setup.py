@@ -3,9 +3,9 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='bifrost__run_launcher',
+    name='bifrost_run_launcher',
     version='temp',
-    url='https://github.com/ssi-dk/bifrost__run_launcher',
+    url='https://github.com/ssi-dk/bifrost_run_launcher',
 
     # Author details
     author='Kim Ng',
