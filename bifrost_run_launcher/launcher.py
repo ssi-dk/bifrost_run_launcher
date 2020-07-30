@@ -32,24 +32,25 @@ def parser():
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--install',
                         action='store_true',
+                        required=False,
                         help='Install/Force reinstall component')
     parser.add_argument('-info', '--info',
                         action='store_true',
                         help='Provides basic information on component')
     parser.add_argument('-pre', '--pre_script',
-                        required='true',
+                        required='--install' not in sys.argv,
                         help='Pre script template run before sample script')
     parser.add_argument('-per', '--per_sample_script',
-                        required='true',
+                        required='--install' not in sys.argv,
                         help='Per sample script template run on each sample')
     parser.add_argument('-post', '--post_script',
-                        required='true',
+                        required='--install' not in sys.argv,
                         help='Post script template run after sample script')
     parser.add_argument('-meta', '--run_metadata',
-                        required='true',
+                        required='--install' not in sys.argv,
                         help='Run metadata tsv')
     parser.add_argument('-reads', '--reads_folder',
-                        required='true',
+                        required='--install' not in sys.argv,
                         help='Run metadata tsv')
     parser.add_argument('-name', '--run_name',
                         default=None,
