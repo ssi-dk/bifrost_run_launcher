@@ -15,7 +15,7 @@ import pkg_resources
 COMPONENT: dict = datahandling.load_yaml(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 
 
-def parser():
+def parser(args):
     """
     Arg parsing via argparse
     """
@@ -32,25 +32,19 @@ def parser():
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--install',
                         action='store_true',
-                        required=False,
                         help='Install/Force reinstall component')
-    parser.add_argument('-info', '--info',
+    parser.add_argument('--info',
                         action='store_true',
                         help='Provides basic information on component')
     parser.add_argument('-pre', '--pre_script',
-                        required='--install' not in sys.argv,
                         help='Pre script template run before sample script')
     parser.add_argument('-per', '--per_sample_script',
-                        required='--install' not in sys.argv,
                         help='Per sample script template run on each sample')
     parser.add_argument('-post', '--post_script',
-                        required='--install' not in sys.argv,
                         help='Post script template run after sample script')
     parser.add_argument('-meta', '--run_metadata',
-                        required='--install' not in sys.argv,
                         help='Run metadata tsv')
     parser.add_argument('-reads', '--reads_folder',
-                        required='--install' not in sys.argv,
                         help='Run metadata tsv')
     parser.add_argument('-name', '--run_name',
                         default=None,
@@ -64,7 +58,24 @@ def parser():
     #TODO: Put code in to utilize ID
     parser.add_argument('-id', '--run_id',
                         help='For re-running a run') 
-    return parser
+
+    args, leftovers = parser.parse_known_args(args)
+
+    if not args.install and not args.info:
+        error_message = "Required fields missing:"
+        if not (args.pre_script):
+            error_message += " --pre_script"
+        if not (args.per_sample_script):
+            error_message += " --per_sample_script"
+        if not (args.post_script):
+            error_message += " --post_script"
+        if not (args.run_metadata):
+            error_message += " --run_metadata"
+        if not (args.reads_folder):
+            error_message += " --reads_folder"
+        if error_message != "Required fields missing:":
+            parser.error(error_message)
+    return args
 
 
 def run_program(args: argparse.Namespace):
@@ -76,13 +87,13 @@ def run_program(args: argparse.Namespace):
         print(message)
     else:
         print(datahandling.get_connection_info())
-
     if args.info:
         show_info()
     elif args.install:
         install_component()
     else:
         run_pipeline(args)
+
 
 
 def show_info():
@@ -145,7 +156,7 @@ def run_pipeline(args: object):
             print(traceback.format_exc())
 
 def run():
-    args: argparse.Namespace = parser().parse_args()
+    args: argparse.Namespace = parser(sys.argv[1:])
     run_program(args)
 
 if __name__ == '__main__':

@@ -1,0 +1,21 @@
+{'_id': ObjectId('5f22b136386df7a40347de70'),
+ 'components': [],
+ 'metadata': {'updated_at': datetime.datetime(2020, 7, 30, 11, 38, 30, 733000)},
+ 'name': 'Sample1',
+ 'properties': {'paired_reads': {'summary': {'data': ['/tmp/pytest-of-root/pytest-35/test_pipeline0/samples/Sample1_R1.fastq.gz',
+                                                      '/tmp/pytest-of-root/pytest-35/test_pipeline0/samples/Sample1_R2.fastq.gz']}},
+                'sample_info': {'summary': {'another_optional_field': 'Some '
+                                                                      'option',
+                                            'changed_sample_names': False,
+                                            'comments': 'Looks good',
+                                            'duplicated_sample_names': False,
+                                            'haveMetaData': True,
+                                            'haveReads': True,
+                                            'optional_field_name': 'Option1',
+                                            'priority': 1,
+                                            'provided_species': 'Escherichia '
+                                                                'coli',
+                                            'run_name': 'run_A',
+                                            'sample_name': 'Sample1',
+                                            'temp_sample_name': 'Sample1'}}},
+ 'report': {}}

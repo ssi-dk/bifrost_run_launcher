@@ -2,6 +2,7 @@ import os
 import pymongo
 import pytest
 import argparse
+import sys
 from bifrost_run_launcher import launcher
 
 @pytest.fixture
@@ -26,8 +27,7 @@ def test_clear_db(mydb):
 
 def test_install_component(mydb):
     test_clear_db(mydb)
-    parser = launcher.parser()
-    args: argparse.Namespace = parser.parse_args(["--install"])
+    args: argparse.Namespace = launcher.parser(["--install"])
     launcher.run_program(args)
 
 def test_pipeline(mydb, tmp_path):
@@ -38,8 +38,7 @@ def test_pipeline(mydb, tmp_path):
     p.write_text("text")
     p = d / "Sample1_R2.fastq.gz"
     p.write_text("text")
-    parser = launcher.parser()
-    args: argparse.Namespace = parser.parse_args([
+    args = launcher.parser([
         "-pre", "examples/pre_script.sh",
         "-per", "examples/per_sample_script.sh",
         "-post", "examples/post_script.sh",
