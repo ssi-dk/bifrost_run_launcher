@@ -235,6 +235,7 @@ def run_pipeline(args: object) -> None:
         with open("samples.yaml", "w") as fh:
             for sample in samples:
                 fh.write(pprint.pformat(sample.display()))
+        print("Done, to run execute bash run_script.sh")
 
 # if __name__ == "__main__":
 #     parse_args(sys.argv[1:])
