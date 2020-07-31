@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   python:
-    image: bifrost_launcher
+    image: bifrost_run_launcher
     build:
       context: .
       args:
@@ -11,7 +11,7 @@ services:
     volumes:
     - .:/bifrost_run_launcher/
   python-tests:
-    image: bifrost_launcher
+    image: bifrost_run_launcher
     working_dir: /bifrost_run_launcher/
     env_file:
       - .mongodb_dev_keys.env

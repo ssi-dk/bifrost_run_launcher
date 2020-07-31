@@ -134,12 +134,7 @@ def run_pipeline(args: object):
     component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
     if len(component) == 0:
         print(f"component not found in DB, installing it:")
-        datahandling.post_component(COMPONENT)
-        component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
-        if len(component) != 1:
-            print(f"Error with installation of {COMPONENT['name']}\n")
-            exit()
-
+        install_component()
     else:
         try:
             optional_values: str = ""

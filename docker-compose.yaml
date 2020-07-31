@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   python:
-    image: bifrost_launcher
+    image: bifrost_run_launcher
     build:
       context: .
       args:
