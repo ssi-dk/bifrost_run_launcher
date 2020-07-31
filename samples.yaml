@@ -1,9 +1,9 @@
-{'_id': ObjectId('5f22b136386df7a40347de70'),
+{'_id': ObjectId('5f23bb00c85031a222cc696f'),
  'components': [],
- 'metadata': {'updated_at': datetime.datetime(2020, 7, 30, 11, 38, 30, 733000)},
+ 'metadata': {'updated_at': datetime.datetime(2020, 7, 31, 6, 32, 32, 989000)},
  'name': 'Sample1',
- 'properties': {'paired_reads': {'summary': {'data': ['/tmp/pytest-of-root/pytest-35/test_pipeline0/samples/Sample1_R1.fastq.gz',
-                                                      '/tmp/pytest-of-root/pytest-35/test_pipeline0/samples/Sample1_R2.fastq.gz']}},
+ 'properties': {'paired_reads': {'summary': {'data': ['/tmp/pytest-of-root/pytest-1/test_pipeline0/samples/Sample1_R1.fastq.gz',
+                                                      '/tmp/pytest-of-root/pytest-1/test_pipeline0/samples/Sample1_R2.fastq.gz']}},
                 'sample_info': {'summary': {'another_optional_field': 'Some '
                                                                       'option',
                                             'changed_sample_names': False,

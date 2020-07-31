@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  python:
+    image: bifrost_launcher
+    build:
+      context: .
+      args:
+        BUILD_ENV: dev
+    env_file:
+      - .mongodb_dev_keys.env
+    volumes:
+    - .:/bifrost_run_launcher/
+    entrypoint: "bash"
+    stdin_open: true # kept open to keep image running
+  python-tests:
+    image: bifrost_launcher
+    working_dir: /bifrost_run_launcher/
+    env_file:
+      - .mongodb_dev_keys.env
+    volumes:
+      - .:/bifrost_run_launcher/
+    entrypoint: watchmedo auto-restart --recursive --pattern="*.py" --directory="/bifrost_run_launcher" pytest
+    depends_on:
+      - python

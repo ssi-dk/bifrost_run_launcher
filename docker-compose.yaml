@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  bifrost_launcher:
+    image: bifrost_launcher
+    build:
+      context: .
+      args:
+        BUILD_ENV: prod
+    env_file:
+      - .mongodb_prod_keys.env
+    volumes:
+    - .:/bifrost_run_launcher/

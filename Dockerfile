@@ -5,18 +5,24 @@ ARG NAME="bifrost_run_launcher"
 ARG CODE_VERSION="unspecified"
 ARG RESOURCE_VERSION="unspecified"
 
-#For dev build include testing modules
+# For dev build include testing modules via pytest done on github and in development.
+# Watchdog is included for docker development (intended method) and should preform auto testing 
+# while working on *.py files
 FROM continuumio/miniconda3:4.7.10 as build_dev
 ONBUILD ARG NAME
 ONBUILD RUN pip install pytest \
     pytest-cov \
     pytest-profiling \
-    coverage;
+    coverage \
+    pyyaml \
+    argh \
+    watchdog;
 ONBUILD COPY tests /${NAME}/tests
 ONBUILD COPY examples /${NAME}/examples
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD ARG NAME
+ONBUILD RUN 
 ONBUILD RUN echo ${BUILD_ENV}
 
 FROM build_${BUILD_ENV}
@@ -45,7 +51,7 @@ RUN \
     sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
     sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
     cd /${NAME}; \
-    pip install . 
+    pip install -e . 
 #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------
