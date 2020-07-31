@@ -22,7 +22,6 @@ ONBUILD COPY examples /${NAME}/examples
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD ARG NAME
-ONBUILD RUN 
 ONBUILD RUN echo ${BUILD_ENV}
 
 FROM build_${BUILD_ENV}
@@ -51,7 +50,7 @@ RUN \
     sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
     sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
     cd /${NAME}; \
-    pip install -e . 
+    pip install -e .; 
 #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------

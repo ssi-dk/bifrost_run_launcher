@@ -145,7 +145,7 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
 
         return (run, samples)
     except:
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
             print(df)
 
 def convert_to_datetime(text: str, date_formats = ['%d-%m-%y', '%d-%m-%Y', '%d/%m/%Y']):

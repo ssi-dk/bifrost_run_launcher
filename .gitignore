@@ -1,4 +1,8 @@
 .mongoDB_dev_keys.env
+.mongoDB_prod_keys.env
+run_script.sh
+run.yaml
+samples.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

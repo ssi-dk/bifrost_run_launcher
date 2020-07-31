@@ -10,8 +10,6 @@ services:
       - .mongodb_dev_keys.env
     volumes:
     - .:/bifrost_run_launcher/
-    entrypoint: "bash"
-    stdin_open: true # kept open to keep image running
   python-tests:
     image: bifrost_launcher
     working_dir: /bifrost_run_launcher/
