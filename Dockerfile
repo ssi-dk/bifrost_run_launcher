@@ -16,16 +16,9 @@ ONBUILD RUN \
     sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' ${NAME}/config.yaml; \
     sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' ${NAME}/config.yaml; \
     pip install -r requirements.dev.txt;
-# For getting data to test, since we use mount points examples will overwrite examples so we need 
-# another folder to store the read data.
-ONBUILD RUN \
-    cd examples; \ 
-    wget -O S1_R1.fastq.gz -q ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R1.fastq.gz; \
-    wget -O S1_R2.fastq.gz -q ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R2.fastq.gz; 
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD ARG NAME
-# ONBUILD COPY . /${NAME}
 ONBUILD WORKDIR ${NAME}
 ONBUILD COPY ${NAME} ${NAME}
 ONBUILD COPY setup.py setup.py

@@ -3,6 +3,7 @@ import pymongo
 import pytest
 import argparse
 import yaml
+import wget
 from bifrost_run_launcher import launcher as brl
 
 @pytest.fixture
@@ -56,6 +57,10 @@ def test_pipeline_no_data(mydb, tmp_path):
 def test_pipeline_with_data(mydb, tmp_path):
     test_install_component(mydb)
     # Resources folder is made with Dockerfile in dev mode
+    if not os.path.isfile("/bifrost_run_launcher/examples/S1_R1.fastq.gz"):
+        wget.download("ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R1.fastq.gz", out="/bifrost_run_launcher/examples/S1_R1.fastq.gz")
+    if not os.path.isfile("/bifrost_run_launcher/examples/S1_R2.fastq.gz"):
+        wget.download("ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R2.fastq.gz", out="/bifrost_run_launcher/examples/S1_R2.fastq.gz")
     args = brl.parser([
         "-pre", "/bifrost_run_launcher/examples/pre_script.sh",
         "-per", "/bifrost_run_launcher/examples/per_sample_script.sh",
