@@ -18,9 +18,8 @@ ONBUILD RUN \
     pip install -r requirements.dev.txt;
 # For getting data to test, since we use mount points examples will overwrite examples so we need 
 # another folder to store the read data.
-ONBUILD COPY examples test_resources
 ONBUILD RUN \
-    cd test_resources; \ 
+    cd examples; \ 
     wget -O S1_R1.fastq.gz -q ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R1.fastq.gz; \
     wget -O S1_R2.fastq.gz -q ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R2.fastq.gz; 
 

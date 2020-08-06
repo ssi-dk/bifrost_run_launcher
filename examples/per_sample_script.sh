@@ -4,7 +4,7 @@ BIFROST_RAW_DATA_MNT="/raw_data/mnt";
 BIFROST_PIPELINE_TOOLS="/tools/singularity";
 mkdir $sample.name;
 cd $sample.name;
-singularity run -B \
+docker run -B \
 $BIFROST_RAW_DATA_MNT,\
 $sample.properties.paired_reads.summary.data[0],\
 $sample.properties.paired_reads.summary.data[1] \

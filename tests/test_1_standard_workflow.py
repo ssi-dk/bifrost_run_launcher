@@ -40,10 +40,10 @@ def test_pipeline_no_data(mydb, tmp_path):
     p.write_text("text")
     # Resources folder is made with Dockerfile in dev mode
     args = brl.parser([
-        "-pre", "/bifrost_run_launcher/test_resources/pre_script.sh",
-        "-per", "/bifrost_run_launcher/test_resources/per_sample_script.sh",
-        "-post", "/bifrost_run_launcher/test_resources/post_script.sh",
-        "-meta", "/bifrost_run_launcher/test_resources/run_metadata.tsv",
+        "-pre", "/bifrost_run_launcher/examples/pre_script.sh",
+        "-per", "/bifrost_run_launcher/examples/per_sample_script.sh",
+        "-post", "/bifrost_run_launcher/examples/post_script.sh",
+        "-meta", "/bifrost_run_launcher/examples/run_metadata.tsv",
         "-reads", str(d),
         "-name", "test_run",
         "-type", "test"
@@ -57,11 +57,11 @@ def test_pipeline_with_data(mydb, tmp_path):
     test_install_component(mydb)
     # Resources folder is made with Dockerfile in dev mode
     args = brl.parser([
-        "-pre", "/bifrost_run_launcher/test_resources/pre_script.sh",
-        "-per", "/bifrost_run_launcher/test_resources/per_sample_script.sh",
-        "-post", "/bifrost_run_launcher/test_resources/post_script.sh",
-        "-meta", "/bifrost_run_launcher/test_resources/run_metadata.tsv",
-        "-reads", "/bifrost_run_launcher/test_resources",
+        "-pre", "/bifrost_run_launcher/examples/pre_script.sh",
+        "-per", "/bifrost_run_launcher/examples/per_sample_script.sh",
+        "-post", "/bifrost_run_launcher/examples/post_script.sh",
+        "-meta", "/bifrost_run_launcher/examples/run_metadata.tsv",
+        "-reads", "/bifrost_run_launcher/examples",
         "-name", "test_run",
         "-type", "test"
     ])

@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-
-
 setup(
     name='bifrost_run_launcher',
     version='temp',
