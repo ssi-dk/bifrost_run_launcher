@@ -10,19 +10,31 @@ ARG RESOURCE_VERSION="unspecified"
 # while working on *.py files
 FROM continuumio/miniconda3:4.7.10 as build_dev
 ONBUILD ARG NAME
-ONBUILD RUN pip install pytest \
-    pytest-cov \
-    pytest-profiling \
-    coverage \
-    pyyaml \
-    argh \
-    watchdog;
-ONBUILD COPY tests /${NAME}/tests
-ONBUILD COPY examples /${NAME}/examples
+ONBUILD COPY . /${NAME}
+ONBUILD WORKDIR ${NAME}
+ONBUILD RUN \
+    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' ${NAME}/config.yaml; \
+    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' ${NAME}/config.yaml; \
+    pip install -r requirements.dev.txt;
+# For getting data to test, since we use mount points examples will overwrite examples so we need 
+# another folder to store the read data.
+ONBUILD RUN \
+    cd examples; \ 
+    wget -O S1_R1.fastq.gz -q ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R1.fastq.gz; \
+    wget -O S1_R2.fastq.gz -q ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R2.fastq.gz; 
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD ARG NAME
-ONBUILD RUN echo ${BUILD_ENV}
+# ONBUILD COPY . /${NAME}
+ONBUILD WORKDIR ${NAME}
+ONBUILD COPY ${NAME} ${NAME}
+ONBUILD COPY setup.py setup.py
+ONBUILD COPY requirements.txt requirements.txt
+ONBUILD RUN \
+    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' ${NAME}/config.yaml; \
+    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' ${NAME}/config.yaml; \
+    ls; \
+    pip install -r requirements.txt
 
 FROM build_${BUILD_ENV}
 ARG NAME
@@ -43,14 +55,7 @@ LABEL \
 #- Additional resources (files/DBs): end -----------------------------------------------------------
 
 #- Source code:start -------------------------------------------------------------------------------
-# COPY src /${NAME}/src
-COPY ${NAME} /${NAME}/${NAME}
-COPY setup.py /${NAME}
-RUN \
-    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
-    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
-    cd /${NAME}; \
-    pip install -e .; 
+# 
 #- Source code:end ---------------------------------------------------------------------------------
 
 #- Set up entry point:start ------------------------------------------------------------------------
