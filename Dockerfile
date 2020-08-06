@@ -25,13 +25,16 @@ ONBUILD RUN \
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD ARG NAME
-ONBUILD COPY ${NAME} /${NAME}/${NAME}
-COPY setup.py /${NAME}/setup.py
-COPY requirements.txt /${NAME}/requirements.txt
+# ONBUILD COPY . /${NAME}
+ONBUILD WORKDIR ${NAME}
+ONBUILD COPY ${NAME} ${NAME}
+ONBUILD COPY setup.py setup.py
+ONBUILD COPY requirements.txt requirements.txt
 ONBUILD RUN \
-    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
-    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' /${NAME}/${NAME}/config.yaml; \
-    pip install -r /${NAME}/requirements.txt
+    sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' ${NAME}/config.yaml; \
+    sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' ${NAME}/config.yaml; \
+    ls; \
+    pip install -r requirements.txt
 
 FROM build_${BUILD_ENV}
 ARG NAME
