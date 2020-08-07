@@ -56,7 +56,7 @@ def test_pipeline_no_data(mydb, tmp_path):
     assert os.path.isfile("samples.yaml")
     assert os.path.isfile("run_script.sh")
 
-def test_pipeline_with_data(mydb, tmp_path):
+def test_pipeline_with_data(mydb):
     test_install_component(mydb)
     if not (os.path.isfile("/bifrost_test_data/read_data/S1_R1.fastq.gz") and os.path.isfile("/bifrost_test_data/read_data/S1_R2.fastq.gz")):
         process = subprocess.Popen(
