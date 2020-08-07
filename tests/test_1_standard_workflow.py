@@ -3,8 +3,9 @@ import pymongo
 import pytest
 import argparse
 import yaml
-import wget
+import subprocess
 from bifrost_run_launcher import launcher as brl
+# Test data from bifrost_test_data git repo
 
 @pytest.fixture
 def mydb():
@@ -18,6 +19,7 @@ def test_db_connection(mydb):
     mydb.list_collection_names()
 
 def test_clear_db(mydb):
+    os.chdir('/bifrost_test_data/')
     col_components = mydb["components"]
     col_samples = mydb["samples"]
     col_runs = mydb["runs"]
@@ -35,16 +37,16 @@ def test_pipeline_no_data(mydb, tmp_path):
     test_install_component(mydb)
     d = tmp_path / "samples"
     d.mkdir()
-    p = d / "Sample1_R1.fastq.gz"
+    p = d / "S1_R1.fastq.gz"
     p.write_text("text")
-    p = d / "Sample1_R2.fastq.gz"
+    p = d / "S1_R2.fastq.gz"
     p.write_text("text")
     # Resources folder is made with Dockerfile in dev mode
     args = brl.parser([
-        "-pre", "/bifrost_run_launcher/examples/pre_script.sh",
-        "-per", "/bifrost_run_launcher/examples/per_sample_script.sh",
-        "-post", "/bifrost_run_launcher/examples/post_script.sh",
-        "-meta", "/bifrost_run_launcher/examples/run_metadata.tsv",
+        "-pre", "/bifrost_test_data/pre.sh",
+        "-per", "/bifrost_test_data/per_sample.sh",
+        "-post", "/bifrost_test_data/post.sh",
+        "-meta", "/bifrost_test_data/run_metadata.tsv",
         "-reads", str(d),
         "-name", "test_run",
         "-type", "test"
@@ -56,17 +58,20 @@ def test_pipeline_no_data(mydb, tmp_path):
 
 def test_pipeline_with_data(mydb, tmp_path):
     test_install_component(mydb)
-    # Resources folder is made with Dockerfile in dev mode
-    if not os.path.isfile("/bifrost_run_launcher/examples/S1_R1.fastq.gz"):
-        wget.download("ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R1.fastq.gz", out="/bifrost_run_launcher/examples/S1_R1.fastq.gz")
-    if not os.path.isfile("/bifrost_run_launcher/examples/S1_R2.fastq.gz"):
-        wget.download("ftp://ftp.sra.ebi.ac.uk/vol1/run/ERR430/ERR4301030/S1.R2.fastq.gz", out="/bifrost_run_launcher/examples/S1_R2.fastq.gz")
+    if not (os.path.isfile("/bifrost_test_data/read_data/S1_R1.fastq.gz") and os.path.isfile("/bifrost_test_data/read_data/S1_R2.fastq.gz")):
+        process = subprocess.Popen(
+                "bash download_S1.sh",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                shell=True,
+                cwd="/bifrost_test_data/read_data/")
+        process_out, process_err = process.communicate()
     args = brl.parser([
-        "-pre", "/bifrost_run_launcher/examples/pre_script.sh",
-        "-per", "/bifrost_run_launcher/examples/per_sample_script.sh",
-        "-post", "/bifrost_run_launcher/examples/post_script.sh",
-        "-meta", "/bifrost_run_launcher/examples/run_metadata.tsv",
-        "-reads", "/bifrost_run_launcher/examples",
+        "-pre", "/bifrost_test_data/pre.sh",
+        "-per", "/bifrost_test_data/per_sample.sh",
+        "-post", "/bifrost_test_data/post.sh",
+        "-meta", "/bifrost_test_data/run_metadata.tsv",
+        "-reads", "/bifrost_test_data/read_data",
         "-name", "test_run",
         "-type", "test"
     ])

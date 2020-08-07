@@ -10,6 +10,9 @@ ARG RESOURCE_VERSION="unspecified"
 # while working on *.py files
 FROM continuumio/miniconda3:4.7.10 as build_dev
 ONBUILD ARG NAME
+# Acquire test data
+ONBUILD RUN \
+    git clone https://github.com/ssi-dk/bifrost_test_data.git
 ONBUILD COPY . /${NAME}
 ONBUILD WORKDIR ${NAME}
 ONBUILD RUN \
