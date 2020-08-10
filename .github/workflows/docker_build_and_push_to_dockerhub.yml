@@ -19,6 +19,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }} # optional
           repository: ssidk/${{ github.event.repository.name }}
           tags: dev
+          build_args: BUILD_ENV=dev
       - name: Build and push Docker images (to latest)
         if: github.ref == 'refs/heads/master'
         uses: docker/build-push-action@v1.1.0
