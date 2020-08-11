@@ -1,2 +1,2 @@
-bifrostlib==2.0.10
+bifrostlib==2.0.11
 /bifrost_run_launcher/
