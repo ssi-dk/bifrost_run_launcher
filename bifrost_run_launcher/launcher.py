@@ -139,9 +139,6 @@ def run_pipeline(args: object):
     """
     Runs pipeline
     """
-    if not os.path.isdir(args.outdir):
-        os.makedirs(args.outdir)
-    os.chdir(args.outdir)
 
     component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
     if len(component) == 0:
