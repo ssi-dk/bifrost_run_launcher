@@ -22,12 +22,12 @@ jobs:
         pip install setuptools wheel twine
     - name: Build docker image
       run: |
-        docker build --build-arg BUILD_ENV=dev -t bifrost_run_launcher .
+        docker build --build-arg BUILD_ENV=dev -t ${{ github.event.repository.name }} .
     - name: Run_tests
       run: >
           docker run 
-          -w /bifrost_run_launcher
+          -w /${{ github.event.repository.name }}
           --entrypoint "python3"
-          -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_run_launcher_test 
-          bifrost_run_launcher 
+          -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/${{ github.event.repository.name }}_test 
+          ${{ github.event.repository.name }} 
           -m pytest
