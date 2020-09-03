@@ -144,20 +144,20 @@ def run_pipeline(args: object):
     if len(component) == 0:
         print(f"component not found in DB, installing it:")
         install_component()
-    else:
-        try:
-            optional_values: str = ""
-            if args.run_name is not None:
-                optional_values = f"{optional_values} -name {str(args.run_name)}"
-            if args.run_type is not None:
-                optional_values = f"{optional_values} -type {str(args.run_type)}"
-            if args.run_type is not None:
-                optional_values = f"{optional_values} -metamap {str(args.run_metadata_column_remap)}"
-            if args.run_id is not None:
-                optional_values = f"{optional_values} -id {str(args.run_id)}"
-            pipeline.run_pipeline(args)
-        except:
-            print(traceback.format_exc())
+
+    try:
+        optional_values: str = ""
+        if args.run_name is not None:
+            optional_values = f"{optional_values} -name {str(args.run_name)}"
+        if args.run_type is not None:
+            optional_values = f"{optional_values} -type {str(args.run_type)}"
+        if args.run_type is not None:
+            optional_values = f"{optional_values} -metamap {str(args.run_metadata_column_remap)}"
+        if args.run_id is not None:
+            optional_values = f"{optional_values} -id {str(args.run_id)}"
+        pipeline.run_pipeline(args)
+    except:
+        print(traceback.format_exc())
 
 def run():
     args: argparse.Namespace = parser(sys.argv[1:])
