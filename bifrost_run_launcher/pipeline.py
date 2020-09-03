@@ -207,6 +207,9 @@ def generate_run_script(run: object, samples: object, pre_script_location: str, 
 
 
 def run_pipeline(args: object) -> None:
+    if not os.path.isdir(args.outdir):
+        os.makedirs(args.outdir)
+    os.chdir(args.outdir)
     run_name = args.run_name
     if run_name is None:
         run_name = os.getcwd().split("/")[-1]

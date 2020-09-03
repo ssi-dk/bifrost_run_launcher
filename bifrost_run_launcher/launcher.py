@@ -36,6 +36,9 @@ def parser(args):
     parser.add_argument('--info',
                         action='store_true',
                         help='Provides basic information on component')
+    parser.add_argument('-out', '--outdir',
+                        default=".",
+                        help='Output directory')
     parser.add_argument('-pre', '--pre_script',
                         help='Pre script template run before sample script')
     parser.add_argument('-per', '--per_sample_script',
@@ -57,25 +60,30 @@ def parser(args):
                         help='Remaps metadata tsv columns to bifrost values')
     #TODO: Put code in to utilize ID
     parser.add_argument('-id', '--run_id',
-                        help='For re-running a run') 
+                        help='For re-running a run')
 
-    args, leftovers = parser.parse_known_args(args)
+    try:
+        options: argparse.Namespace = parser.parse_args(args)
+    except:
+        parser.print_help()
+        sys.exit(0)
+    
 
-    if not args.install and not args.info:
+    if not options.install and not options.info:
         error_message = "Required fields missing:"
-        if not (args.pre_script):
+        if not (options.pre_script):
             error_message += " --pre_script"
-        if not (args.per_sample_script):
+        if not (options.per_sample_script):
             error_message += " --per_sample_script"
-        if not (args.post_script):
+        if not (options.post_script):
             error_message += " --post_script"
-        if not (args.run_metadata):
+        if not (options.run_metadata):
             error_message += " --run_metadata"
-        if not (args.reads_folder):
+        if not (options.reads_folder):
             error_message += " --reads_folder"
         if error_message != "Required fields missing:":
             parser.error(error_message)
-    return args
+    return options
 
 
 def run_program(args: argparse.Namespace):
@@ -131,6 +139,7 @@ def run_pipeline(args: object):
     """
     Runs pipeline
     """
+
     component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
     if len(component) == 0:
         print(f"component not found in DB, installing it:")

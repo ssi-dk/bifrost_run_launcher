@@ -10,5 +10,5 @@ wget
 # If you want to edit bifrostlib for development you have to mount the volume to the docker 
 # container and "pip install -e bifrostlib" from there. I attempted to do it via docker but you 
 # can't access volumes at build-time. It doesn't matter for the main package as it's the reference
-bifrostlib==2.0.10
+bifrostlib==2.0.11
 -e /bifrost_run_launcher/

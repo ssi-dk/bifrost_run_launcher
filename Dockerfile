@@ -4,6 +4,7 @@ ARG BUILD_ENV="prod"
 ARG NAME="bifrost_run_launcher"
 ARG CODE_VERSION="unspecified"
 ARG RESOURCE_VERSION="unspecified"
+ARG MAINTAINER="kimn@ssi.dk;"
 
 # For dev build include testing modules via pytest done on github and in development.
 # Watchdog is included for docker development (intended method) and should preform auto testing 
@@ -40,7 +41,7 @@ LABEL \
     code_version="${CODE_VERSION}" \
     resource_version="${RESOURCE_VERSION}" \
     environment="${BUILD_ENV}" \
-    maintainer="kimn@ssi.dk;"
+    maintainer="${MAINTAINER}"
 
 #- Tools to install:start---------------------------------------------------------------------------
 # None
