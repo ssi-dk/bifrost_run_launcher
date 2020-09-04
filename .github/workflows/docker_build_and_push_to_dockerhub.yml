@@ -35,6 +35,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }} # optional
           password: ${{ secrets.DOCKER_PASSWORD }} # optional
           repository: ssidk/${{ github.event.repository.name }}
-          tags: ${{ github.ref }}__NA # optional
+          tags: ${{ github.ref }}_NA # optional
           push: ${{ startsWith(github.ref, 'refs/tags/') }} # composite of code_version__resource_version
           build_args: CODE_VERSION=${{ github.ref }},RESOURCE_VERSION=NA
