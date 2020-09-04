@@ -11,6 +11,8 @@ ARG MAINTAINER="kimn@ssi.dk;"
 # while working on *.py files
 FROM continuumio/miniconda3:4.7.10 as build_dev
 ONBUILD ARG NAME
+ONBUILD ARG CODE_VERSION
+ONBUILD ARG RESOURCE_VERSION
 # Acquire test data
 ONBUILD RUN \
     git clone https://github.com/ssi-dk/bifrost_test_data.git
@@ -23,6 +25,8 @@ ONBUILD RUN \
 
 FROM continuumio/miniconda3:4.7.10 as build_prod
 ONBUILD ARG NAME
+ONBUILD ARG CODE_VERSION
+ONBUILD ARG RESOURCE_VERSION
 ONBUILD WORKDIR ${NAME}
 ONBUILD COPY ${NAME} ${NAME}
 ONBUILD COPY setup.py setup.py
@@ -30,7 +34,6 @@ ONBUILD COPY requirements.txt requirements.txt
 ONBUILD RUN \
     sed -i'' 's/<code_version>/'"${CODE_VERSION}"'/g' ${NAME}/config.yaml; \
     sed -i'' 's/<resource_version>/'"${RESOURCE_VERSION}"'/g' ${NAME}/config.yaml; \
-    ls; \
     pip install -r requirements.txt
 
 FROM build_${BUILD_ENV}
