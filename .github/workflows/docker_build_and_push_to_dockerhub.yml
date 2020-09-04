@@ -2,7 +2,7 @@ name: Build and push Docker images to Dockerhub
 on:
   push:
   release:
-    types: [created]
+    types: [created,edited]
 
 jobs:
     build-n-publish:
