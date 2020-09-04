@@ -142,6 +142,11 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
         run.save() 
         # pp.pprint(run.display())
         # df.to_csv("test.txt")
+        with open("run.yaml", "w") as fh:
+            fh.write(pprint.pformat(run.display()))
+        with open("samples.yaml", "w") as fh:
+            for sample in samples:
+                fh.write(pprint.pformat(sample.display()))
 
         return (run, samples)
     except:
@@ -217,27 +222,36 @@ def run_pipeline(args: object) -> None:
     # print(run_name)
     if len(runs) > 0:
         print(run_name+" already in DB, please correct before attempting to run again")
-    else:
-        run, samples = initialize_run(
-            run_name,
-            input_folder=args.reads_folder,
-            run_metadata=args.run_metadata,
-            run_type=args.run_type,
-            rename_column_file=args.run_metadata_column_remap
-            )
-        script = generate_run_script(
-            run,
-            samples,
-            args.pre_script,
-            args.per_sample_script,
-            args.post_script)
-        with open("run_script.sh", "w") as fh:
-            fh.write(script)
-        with open("run.yaml", "w") as fh:
-            fh.write(pprint.pformat(run.display()))
-        with open("samples.yaml", "w") as fh:
-            for sample in samples:
-                fh.write(pprint.pformat(sample.display()))
+    else:    
+        if args.run_id is None:    
+            run, samples = initialize_run(
+                run_name,
+                input_folder=args.reads_folder,
+                run_metadata=args.run_metadata,
+                run_type=args.run_type,
+                rename_column_file=args.run_metadata_column_remap
+                )
+            print("Run and samples added to DB")
+        else: 
+            run = datahandling.Run(_id=args.run_id)
+            run_samples = run.get("samples")
+            samples = []
+            for sample_ref in run_samples:
+                samples.append(datahandling.Sample(_id=sample_ref["_id"]))
+            print("Run and samples loaded from DB")
+        
+        if run is None: 
+            print("Run not found in DB")
+        else:
+            script = generate_run_script(
+                run,
+                samples,
+                args.pre_script,
+                args.per_sample_script,
+                args.post_script)
+            with open("run_script.sh", "w") as fh:
+                fh.write(script)
+
         print("Done, to run execute bash run_script.sh")
 
 # if __name__ == "__main__":
