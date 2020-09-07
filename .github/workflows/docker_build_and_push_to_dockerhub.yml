@@ -8,11 +8,11 @@ jobs:
     build-n-publish:
       name: Publish Docker 🐳 image 📦 to Dockerhub
       runs-on: ubuntu-latest
+      env: 
+        VERSION: NA
       steps:
       - name: get_version
         uses: battila7/get-version-action@v2
-        env: 
-          VERSION: NA
       - run: |
           export VERSION=${{ steps.get_version.outputs.version }}
           echo "::set-env name=VERSION::$VERSION"  
