@@ -11,9 +11,8 @@ jobs:
       steps:
       - name: get_version
         uses: battila7/get-version-action@v2
-        env:
-          VERSION: ${{ steps.get_version.outputs.version }}
       - run: |
+          echo "::set-env name=VERSION::${{ steps.get_version.outputs.version }}"
           echo "${{ VERSION }}
       - uses: actions/checkout@v2
       - name: Build and push Docker images (to dev)
