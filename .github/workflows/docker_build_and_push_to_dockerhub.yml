@@ -13,7 +13,7 @@ jobs:
         uses: battila7/get-version-action@v2
       - run: |
           echo "::set-env name=VERSION::${{ steps.get_version.outputs.version }}"
-          echo "${{ VERSION }}
+          echo "$VERSION
       - uses: actions/checkout@v2
       - name: Build and push Docker images (to dev)
         if: github.ref == 'refs/heads/dev'
@@ -39,6 +39,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }} # optional
           password: ${{ secrets.DOCKER_PASSWORD }} # optional
           repository: ssidk/${{ github.event.repository.name }}
-          tags: ${{ env.VERSION }}__NA # composite of code_version__resource_version
+          tags: $VERSION__NA # composite of code_version__resource_version
           push: ${{ startsWith(github.ref, 'refs/tags/') }} 
-          build_args: CODE_VERSION=${{ env.VERSION }},RESOURCE_VERSION=NA
+          build_args: CODE_VERSION=$VERSION,RESOURCE_VERSION=NA
