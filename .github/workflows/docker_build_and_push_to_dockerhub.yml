@@ -9,12 +9,12 @@ jobs:
       name: Publish Docker 🐳 image 📦 to Dockerhub
       runs-on: ubuntu-latest
       steps:
+      - uses: actions/checkout@v2
       - name: get_version
         uses: battila7/get-version-action@v2
       - run: |
           echo "::set-env name=VERSION::${{ steps.get_version.outputs.version }}"
           echo "$VERSION
-      - uses: actions/checkout@v2
       - name: Build and push Docker images (to dev)
         if: github.ref == 'refs/heads/dev'
         uses: docker/build-push-action@v1.1.0
