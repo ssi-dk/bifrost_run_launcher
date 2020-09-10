@@ -3,7 +3,7 @@
 ARG BUILD_ENV="prod"
 ARG NAME="bifrost_run_launcher"
 ARG CODE_VERSION="unspecified"
-ARG RESOURCE_VERSION="unspecified"
+ARG RESOURCE_VERSION="NA"
 ARG MAINTAINER="kimn@ssi.dk;"
 
 # For dev build include testing modules via pytest done on github and in development.

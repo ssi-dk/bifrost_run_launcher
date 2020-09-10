@@ -35,4 +35,4 @@ jobs:
           repository: ssidk/${{ github.event.repository.name }}
           tags: ${{ github.event.release.tag_name }}__NA # composite of code_version__resource_version
           push: ${{ startsWith(github.ref, 'refs/tags/') }} 
-          build_args: CODE_VERSION=${{ github.event.release.tag_name }},RESOURCE_VERSION=NA
+          build_args: CODE_VERSION=${{ github.event.release.tag_name }}
