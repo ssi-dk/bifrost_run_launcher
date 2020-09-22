@@ -1,39 +1,45 @@
 name: Build and push Docker images to Dockerhub
 on:
   push:
-  release:
-    types: [created]
-
+    branches:
+      - master
+      - dev
 jobs:
-    build-n-publish:
-      name: Publish Docker 🐳 image 📦 to Dockerhub
-      runs-on: ubuntu-latest
-      steps:
-      - uses: actions/checkout@v2
-      - name: Build and push Docker images (to dev)
-        if: github.ref == 'refs/heads/dev'
-        uses: docker/build-push-action@v1.1.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }} # optional
-          password: ${{ secrets.DOCKER_PASSWORD }} # optional
-          repository: ssidk/${{ github.event.repository.name }}
-          tags: dev
-          build_args: BUILD_ENV=dev
-      - name: Build and push Docker images (to latest)
-        if: github.ref == 'refs/heads/master'
-        uses: docker/build-push-action@v1.1.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }} # optional
-          password: ${{ secrets.DOCKER_PASSWORD }} # optional
-          repository: ssidk/${{ github.event.repository.name }}
-          tags: latest
-      - name: Build and push Docker images (to version)
-        if: github.event_name == 'release'
-        uses: docker/build-push-action@v1.1.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }} # optional
-          password: ${{ secrets.DOCKER_PASSWORD }} # optional
-          repository: ssidk/${{ github.event.repository.name }}
-          tags: ${{ github.event.release.tag_name }}__NA # composite of code_version__resource_version
-          push: ${{ startsWith(github.ref, 'refs/tags/') }} 
-          build_args: CODE_VERSION=${{ github.event.release.tag_name }}
+  build-n-publish:
+    name: Publish Docker 🐳 image 📦 to Dockerhub and create 🏷 for repo
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get repo name
+      id: getreponame
+      run: echo ::set-env name=REPOSITORY_NAME::${GITHUB_REPOSITORY#*/}
+    - name: Get version info
+      id: getversion
+      run: |
+        echo "::set-env name=CODE_VERSION::$(sed -n 's/^\ \ code:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)"
+        echo "::set-env name=RESOURCE_VERSION::$(sed -n 's/^\ \ resource:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)"
+    - name: Build and push Docker images (to dev)
+      if: github.ref == 'refs/heads/dev'
+      uses: docker/build-push-action@v1.1.0
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }} # optional
+        password: ${{ secrets.DOCKER_PASSWORD }} # optional
+        repository: ssidk/${{ env.REPOSITORY_NAME }}
+        tags: dev
+        build_args: BUILD_ENV=dev,CODE_VERSION=dev,RESOURCE_VERSION=${{ env.RESOURCE_VERSION }}
+    - name: Build and push Docker images (to latest)
+      id: buildmaster
+      if: github.ref == 'refs/heads/master'
+      uses: docker/build-push-action@v1.1.0
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }} # optional
+        password: ${{ secrets.DOCKER_PASSWORD }} # optional
+        repository: ssidk/${{ env.REPOSITORY_NAME }}
+        tags: latest,v${{ env.CODE_VERSION }}__${{ env.RESOURCE_VERSION }}
+        build_args: CODE_VERSION=${{ env.CODE_VERSION }},RESOURCE_VERSION=${{ env.RESOURCE_VERSION }}
+    - name: Tag commit
+      uses: tvdias/github-tagger@v0.0.1
+      if: github.ref == 'refs/heads/master'
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        tag: v${{ env.CODE_VERSION }}__${{ env.RESOURCE_VERSION }}
