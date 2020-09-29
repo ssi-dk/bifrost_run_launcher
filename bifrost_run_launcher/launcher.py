@@ -151,8 +151,8 @@ def run_pipeline(args: object):
             optional_values = f"{optional_values} -name {str(args.run_name)}"
         if args.run_type is not None:
             optional_values = f"{optional_values} -type {str(args.run_type)}"
-        if args.run_type is not None:
-            optional_values = f"{optional_values} -metamap {str(args.run_metadata_column_remap)}"
+        if args.run_metadata_column_remap is not None:
+            optional_values = f"{optional_values} -colmap {str(args.run_metadata_column_remap)}"
         if args.run_id is not None:
             optional_values = f"{optional_values} -id {str(args.run_id)}"
         pipeline.run_pipeline(args)
