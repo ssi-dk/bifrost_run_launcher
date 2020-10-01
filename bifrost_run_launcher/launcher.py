@@ -43,10 +43,12 @@ def parser(args):
         f"\n"
     )
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument(
+    # subparsers = parser.add_subparsers(title='Available commands')
+    # subparser_install = subparsers.add_parser('install', help='Install the component or update the path of the component')
+    install_parser = argparse.ArgumentParser(add_help=False)
+    install_parser.add_argument(
         '--install',
         action='store_true',
-        help='Install/Force reinstall component'
         )
     parser.add_argument(
         '--info',
@@ -95,7 +97,8 @@ def parser(args):
         )
     parser.add_argument(
         '-name', '--run_name',
-        help='Run name, if not provided it will default to current folder name'
+        help='Run name, if not provided it will default to current folder name',
+        default=None
         )
     parser.add_argument(
         '-type', '--run_type',
@@ -114,16 +117,21 @@ def parser(args):
         )
 
     try:
-        options: argparse.Namespace = parser.parse_args(args)
+        install_options, extras = install_parser.parse_known_args(args)
+        if install_options.install:
+            install_component()
+            sys.exit(0)
+        run_options = parser.parse_args(extras)
     except:
         sys.exit(0)
 
-    if options.run_name is None:
-        options.run_name = os.path.abspath(options.outdir).split("/")[-1]
+    if run_options.run_name is None:
+        run_options.run_name = os.path.abspath(run_options.outdir).split("/")[-1]
 
-    if options.debug is True:
-        print(options)
-    return options
+    if run_options.debug is True:
+        print(run_options)
+
+    return run_options
 
 
 def run_program(args: argparse.Namespace):
@@ -138,8 +146,6 @@ def run_program(args: argparse.Namespace):
 
     if args.info:
         show_info()
-    elif args.install:
-        install_component()
     else:
         run_pipeline(args)
 
@@ -169,11 +175,13 @@ def install_component():
         #HACK: Installs based on your current directory currently. Should be changed to the directory your docker/singularity file is
         #HACK: Removed install check so you can reinstall the component. Should do this in a nicer way
         COMPONENT['install']['path'] = os.path.os.getcwd()
+        print(f"Installing with path:{COMPONENT['install']['path']}")
         datahandling.post_component(COMPONENT)
         component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
         if len(component) != 1:
             print(f"Error with installation of {COMPONENT['name']} {len(component)}\n")
             exit()
+        print(f"Done installing")
 
 
 def run_pipeline(args: object):
