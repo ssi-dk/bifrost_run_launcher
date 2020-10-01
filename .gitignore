@@ -1,4 +1,6 @@
 .secret*
+docker-compose.dev.env
+docker-compose.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

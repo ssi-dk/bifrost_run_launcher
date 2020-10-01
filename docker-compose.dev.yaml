@@ -6,7 +6,7 @@ services:
       args:
         BUILD_ENV: dev
     env_file:
-      - .secret_mongodb_dev_key.env
+      - docker-compose.dev.env
   python-tests:
     build:
       context: .
@@ -14,7 +14,7 @@ services:
         BUILD_ENV: dev
     working_dir: /bifrost_run_launcher/
     env_file:
-      - .secret_mongodb_dev_key.env
+      - docker-compose.dev.env
     volumes:
       - ./bifrost_run_launcher:/bifrost_run_launcher/bifrost_run_launcher
       - ./tests:/bifrost_run_launcher/tests

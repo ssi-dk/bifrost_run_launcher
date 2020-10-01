@@ -14,6 +14,17 @@ import pkg_resources
 
 COMPONENT: dict = datahandling.load_yaml(os.path.join(os.path.dirname(__file__), 'config.yaml'))
 
+class types():
+    def file(path):
+        if os.path.isfile(path):
+            return os.path.abspath(path)
+        else:
+            raise argparse.ArgumentTypeError(f"{path} #Not a valid path")
+    def directory(path):
+        if os.path.isdir(path):
+            return os.path.abspath(path)
+        else:
+            raise argparse.ArgumentTypeError(f"{path} #Not a valid path")
 
 def parser(args):
     """
@@ -22,67 +33,96 @@ def parser(args):
     description: str = (
         f"-Description------------------------------------\n"
         f"{COMPONENT['details']['description']}"
-        f"------------------------------------------------\n\n"
-        f"*Run command************************************\n"
-        f"docker run \ \n"
-        f" -e BIFROST_DB_KEY=mongodb://<user>:<password>@<server>:<port>/<db_name> \ \n"
-        f" {COMPONENT['install']['dockerfile']} \ \n"
-        f"************************************************\n"
+        f"------------------------------------------------\n"
+        f"\n"
+        f"-Environmental Variables/Defaults---------------\n"
+        f"BIFROST_CONFIG_DIR: {os.environ.get('BIFROST_CONFIG_DIR','.')}\n"
+        f"BIFROST_RUN_DIR: {os.environ.get('BIFROST_RUN_DIR','.')}\n"
+        f"BIFROST_DB_KEY: {os.environ.get('BIFROST_DB_KEY')}\n"
+        f"------------------------------------------------\n"
+        f"\n"
     )
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--install',
-                        action='store_true',
-                        help='Install/Force reinstall component')
-    parser.add_argument('--info',
-                        action='store_true',
-                        help='Provides basic information on component')
-    parser.add_argument('-out', '--outdir',
-                        default=".",
-                        help='Output directory')
-    parser.add_argument('-pre', '--pre_script',
-                        help='Pre script template run before sample script')
-    parser.add_argument('-per', '--per_sample_script',
-                        help='Per sample script template run on each sample')
-    parser.add_argument('-post', '--post_script',
-                        help='Post script template run after sample script')
-    parser.add_argument('-meta', '--run_metadata',
-                        help='Run metadata tsv')
-    parser.add_argument('-reads', '--reads_folder',
-                        help='Run metadata tsv')
-    parser.add_argument('-name', '--run_name',
-                        default=None,
-                        help='Run name, if not provided it will default to current folder name')
-    parser.add_argument('-type', '--run_type',
-                        default=None,
-                        help='Run type for metadata organization')
-    parser.add_argument('-colmap', '--run_metadata_column_remap',
-                        default=None,
-                        help='Remaps metadata tsv columns to bifrost values')
-    #TODO: Put code in to utilize ID
-    parser.add_argument('-id', '--run_id',
-                        help='For re-running a run')
+    parser.add_argument(
+        '--install',
+        action='store_true',
+        help='Install/Force reinstall component'
+        )
+    parser.add_argument(
+        '--info',
+        action='store_true',
+        help='Provides basic information on component'
+        )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Show arg values'
+        )
+    parser.add_argument(
+        '-out', '--outdir',
+        default=os.environ.get('BIFROST_RUN_DIR',os.getcwd()),
+        help='Output directory'
+        )
+    parser.add_argument(
+        '-pre', '--pre_script',
+        help='Pre script template run before sample script',
+        default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_pre']),
+        type=types.file,
+        )
+    parser.add_argument(
+        '-per', '--per_sample_script',
+        help='Per sample script template run on each sample',
+        default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_per']),
+        type=types.file
+        )
+    parser.add_argument(
+        '-post', '--post_script',
+        help='Post script template run after sample script',
+        default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_post']),
+        type=types.file
+        )
+    parser.add_argument(
+        '-meta', '--run_metadata',
+        help='Run metadata tsv',
+        default=os.path.join(os.environ.get('BIFROST_RUN_DIR',os.getcwd()), COMPONENT['options']['default_meta']),
+        type=types.file
+        )
+    parser.add_argument(
+        '-reads', '--reads_folder',
+        help='Run metadata tsv',
+        default=os.path.join(os.environ.get('BIFROST_RUN_DIR',os.getcwd()), COMPONENT['options']['default_reads']),
+        type=types.directory
+        )
+    parser.add_argument(
+        '-name', '--run_name',
+        help='Run name, if not provided it will default to current folder name'
+        )
+    parser.add_argument(
+        '-type', '--run_type',
+        default=None,
+        help='Run type for metadata organization'
+        )
+    parser.add_argument(
+        '-colmap', '--run_metadata_column_remap',
+        help='Remaps metadata tsv columns to bifrost values',
+        default=None if os.path.isfile(os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_colmap'])) else os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_colmap']),
+        type=types.file
+        )
+    parser.add_argument(
+        '-id', '--run_id',
+        help='For re-running a run'
+        )
 
     try:
         options: argparse.Namespace = parser.parse_args(args)
     except:
-        parser.print_help()
         sys.exit(0)
-    
 
-    if not options.install and not options.info:
-        error_message = "Required fields missing:"
-        if not (options.pre_script):
-            error_message += " --pre_script"
-        if not (options.per_sample_script):
-            error_message += " --per_sample_script"
-        if not (options.post_script):
-            error_message += " --post_script"
-        if not (options.run_metadata):
-            error_message += " --run_metadata"
-        if not (options.reads_folder):
-            error_message += " --reads_folder"
-        if error_message != "Required fields missing:":
-            parser.error(error_message)
+    if options.run_name is None:
+        options.run_name = os.path.abspath(options.outdir).split("/")[-1]
+
+    if options.debug is True:
+        print(options)
     return options
 
 
@@ -95,6 +135,7 @@ def run_program(args: argparse.Namespace):
         print(message)
     else:
         print(datahandling.get_connection_info())
+
     if args.info:
         show_info()
     elif args.install:
@@ -139,22 +180,11 @@ def run_pipeline(args: object):
     """
     Runs pipeline
     """
-
     component: list[dict] = datahandling.get_components(component_names=[COMPONENT['name']])
     if len(component) == 0:
         print(f"component not found in DB, installing it:")
         install_component()
-
     try:
-        optional_values: str = ""
-        if args.run_name is not None:
-            optional_values = f"{optional_values} -name {str(args.run_name)}"
-        if args.run_type is not None:
-            optional_values = f"{optional_values} -type {str(args.run_type)}"
-        if args.run_metadata_column_remap is not None:
-            optional_values = f"{optional_values} -colmap {str(args.run_metadata_column_remap)}"
-        if args.run_id is not None:
-            optional_values = f"{optional_values} -id {str(args.run_id)}"
         pipeline.run_pipeline(args)
     except:
         print(traceback.format_exc())

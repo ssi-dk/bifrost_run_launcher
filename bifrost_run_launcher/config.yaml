@@ -5,7 +5,7 @@ display_name: run_launcher
 name: run_launcher__2.1.1__NA
 version:
   schema: 2.0
-  code: 2.1.1
+  code: 2.1.2
   resource: NA
 note: >
   Currently run components aren't set up properly (probably want to call them collection components)
@@ -38,7 +38,15 @@ category: []
 
 #-Options-------------------------------------------------------------------------------------------
 options:
-# None
+  default_pre: "pre.sh"
+  default_per: "per_sample.sh"
+  default_post: "post.sh"
+  default_meta: "run_metadata.tsv"
+  default_reads: "samples"
+  default_colmap: "rename.json"
+# ENV Variables
+# BIFROST_RUN_DIR - location of reads, metadata, output
+# BIFROST_CONFIG_DIR - location of pre, per, post and colmap
 #---------------------------------------------------------------------------------------------------
 
 #-Required resource files---------------------------------------------------------------------------
@@ -52,7 +60,6 @@ requirements:
 #  files:
 #    -samples_folder
 #    -"run_metadata.tsv"
-#    -"rename.json"
 #    -"pre_script.sh"
 #    -"per_sample_script.sh"
 #    -"post_script.sh"
