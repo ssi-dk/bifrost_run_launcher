@@ -216,16 +216,14 @@ def run_pipeline(args: object) -> None:
         os.makedirs(args.outdir)
     os.chdir(args.outdir)
     run_name = args.run_name
-    if run_name is None:
-        run_name = os.getcwd().split("/")[-1]
     runs = mongo_interface.get_runs(names=[run_name])
-    # print(run_name)
     if len(runs) > 0:
         print(run_name+" already in DB, please correct before attempting to run again")
     else:    
-        if args.run_id is None:    
+        if args.run_id is None:
+            # run, samples = initialize_run(run_name="test",input_folder="/bifrost_run_launcher/tests",run_metadata="/bifrost_run_launcher/tests/run_metadata.tsv",run_type="routine",rename_column_file="rename.json")
             run, samples = initialize_run(
-                run_name,
+                run_name=run_name,
                 input_folder=args.reads_folder,
                 run_metadata=args.run_metadata,
                 run_type=args.run_type,
