@@ -106,7 +106,7 @@ def parser(args):
     parser.add_argument(
         '-colmap', '--run_metadata_column_remap',
         help='Remaps metadata tsv columns to bifrost values',
-        default=None if os.path.isfile(os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_colmap'])) else os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_colmap']),
+        default=None if not os.path.isfile(os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_colmap'])) else os.path.join(os.environ.get('BIFROST_CONFIG_DIR',os.getcwd()), COMPONENT['options']['default_colmap']),
         type=types.file
         )
     parser.add_argument(
