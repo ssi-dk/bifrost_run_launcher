@@ -42,14 +42,12 @@ def parser(args):
         f"------------------------------------------------\n"
         f"\n"
     )
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-    # subparsers = parser.add_subparsers(title='Available commands')
-    # subparser_install = subparsers.add_parser('install', help='Install the component or update the path of the component')
     install_parser = argparse.ArgumentParser(add_help=False)
     install_parser.add_argument(
         '--install',
         action='store_true',
         )
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         '--info',
         action='store_true',
@@ -120,19 +118,17 @@ def parser(args):
         install_options, extras = install_parser.parse_known_args(args)
         if install_options.install:
             install_component()
-            sys.exit(0)
-        run_options = parser.parse_args(extras)
+            return None
+        else:
+            run_options = parser.parse_args(extras)
+            if run_options.run_name is None:
+                run_options.run_name = os.path.abspath(run_options.outdir).split("/")[-1]
+            if run_options.debug is True:
+                print(run_options)
+
+            return run_options
     except:
         sys.exit(0)
-
-    if run_options.run_name is None:
-        run_options.run_name = os.path.abspath(run_options.outdir).split("/")[-1]
-
-    if run_options.debug is True:
-        print(run_options)
-
-    return run_options
-
 
 def run_program(args: argparse.Namespace):
     if not datahandling.check_db_connection_exists():
@@ -199,7 +195,8 @@ def run_pipeline(args: object):
 
 def run():
     args: argparse.Namespace = parser(sys.argv[1:])
-    run_program(args)
+    if args is not None:
+        run_program(args)
 
 if __name__ == '__main__':
     run()

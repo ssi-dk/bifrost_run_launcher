@@ -30,7 +30,6 @@ def test_clear_db(mydb):
 def test_install_component(mydb):
     test_clear_db(mydb)
     args: argparse.Namespace = brl.parser(["--install"])
-    brl.run_program(args)
 
 def test_pipeline_no_data(mydb, tmp_path):
     test_install_component(mydb)
