@@ -217,38 +217,38 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
     run_name = args.run_name
     runs = mongo_interface.get_runs(names=[run_name])
-    if len(runs) > 0:
-        print(run_name+" already in DB, please correct before attempting to run again")
-    else:    
-        if args.run_id is None:
-            # run, samples = initialize_run(run_name="test",input_folder="/bifrost_run_launcher/tests",run_metadata="/bifrost_run_launcher/tests/run_metadata.tsv",run_type="routine",rename_column_file="rename.json")
-            run, samples = initialize_run(
-                run_name=run_name,
-                input_folder=args.reads_folder,
-                run_metadata=args.run_metadata,
-                run_type=args.run_type,
-                rename_column_file=args.run_metadata_column_remap
-                )
-            print("Run and samples added to DB")
-        else: 
-            run = datahandling.Run(_id=args.run_id)
-            run_samples = run.get("samples")
-            samples = []
-            for sample_ref in run_samples:
-                samples.append(datahandling.Sample(_id=sample_ref["_id"]))
-            print("Run and samples loaded from DB")
-        
-        if run is None: 
-            print("Run not found in DB")
-        else:
-            script = generate_run_script(
-                run,
-                samples,
-                args.pre_script,
-                args.per_sample_script,
-                args.post_script)
-            with open("run_script.sh", "w") as fh:
-                fh.write(script)
+
+    run, samples = None, None
+    if args.run_id is not None and len(runs) == 0:
+        print(f"{args.run_id} not found in DB")
+    elif args.run_id is not None and len(runs) > 0:
+        run = datahandling.Run(_id=args.run_id)
+        run_samples = run.get("samples")
+        samples = []
+        for sample_ref in run_samples:
+            samples.append(datahandling.Sample(_id=sample_ref["_id"]))
+        print(f"Run and samples loaded from DB")
+    elif args.run_id is None and len(runs) > 0:
+        print(f"{args.run_name} already exists in DB (unique field)")
+    elif args.run_id is None and len(runs) == 0:
+        run, samples = initialize_run(
+            run_name=run_name,
+            input_folder=args.reads_folder,
+            run_metadata=args.run_metadata,
+            run_type=args.run_type,
+            rename_column_file=args.run_metadata_column_remap
+            )
+        print(f"Run {args.run_name} and samples added to DB")
+
+    if run is not None:
+        script = generate_run_script(
+            run,
+            samples,
+            args.pre_script,
+            args.per_sample_script,
+            args.post_script)
+        with open("run_script.sh", "w") as fh:
+            fh.write(script)
 
         print("Done, to run execute bash run_script.sh")
 
