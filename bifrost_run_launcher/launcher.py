@@ -125,8 +125,7 @@ def parser(args):
                 run_options.run_name = os.path.abspath(run_options.outdir).split("/")[-1]
             if run_options.debug is True:
                 print(run_options)
-
-            return run_options
+            run_program(run_options)
     except:
         sys.exit(0)
 
@@ -144,7 +143,6 @@ def run_program(args: argparse.Namespace):
         show_info()
     else:
         run_pipeline(args)
-
 
 
 def show_info():
@@ -195,8 +193,6 @@ def run_pipeline(args: object):
 
 def run():
     args: argparse.Namespace = parser(sys.argv[1:])
-    if args is not None:
-        run_program(args)
 
 if __name__ == '__main__':
     run()

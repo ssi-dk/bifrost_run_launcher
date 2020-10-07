@@ -1,12 +1,12 @@
 version: '3.8'
 services:
   python:
-    image: bifrost_run_launcher
+    image: ${BIFROST_COMPONENT_NAME}
     build:
       context: .
       args:
         BUILD_ENV: prod
     env_file:
-      - .secret_mongodb_prod_key.env
+      - .env
     entrypoint: "bash"
     stdin_open: true # kept open to keep image running

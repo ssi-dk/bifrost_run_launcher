@@ -49,7 +49,6 @@ def test_pipeline_no_data(mydb, tmp_path):
         "-name", "test_run",
         "-type", "test"
     ])
-    brl.run_program(args)
     assert os.path.isfile("run.yaml")
     assert os.path.isfile("samples.yaml")
     assert os.path.isfile("run_script.sh")
@@ -73,7 +72,6 @@ def test_pipeline_with_data(mydb):
         "-name", "test_run",
         "-type", "test"
     ])
-    brl.run_program(args)
     assert os.path.isfile("run.yaml")
     with open("run.yaml", "r") as file_handle:
         run_doc = yaml.safe_load(file_handle)

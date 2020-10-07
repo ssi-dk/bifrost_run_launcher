@@ -1,9 +1,21 @@
 from setuptools import setup, find_packages
+import os
+import re
+
+with open(f"{os.getenv('BIFROST_COMPONENT_NAME')}/config.yaml", "r") as config_stream:
+    buffer = config_stream.read()
+
+code_version = re.search("version:\n.*\n\s+code:\s*(?P<code_version>.*)\n\s+resource:\s*(?P<resource_version>.*)", buffer, re.MULTILINE).group("code_version")
+
+component = {
+    "name": os.getenv('BIFROST_COMPONENT_NAME'),
+    "version": code_version
+}
 
 setup(
-    name='bifrost_run_launcher',
-    version='temp',
-    url='https://github.com/ssi-dk/bifrost_run_launcher',
+    name=component['name'],
+    version=component['version'],
+    url=f"https://github.com/ssi-dk/{component['name']}",
 
     # Author details
     author='Kim Ng',
@@ -15,7 +27,7 @@ setup(
     packages=find_packages(),
     python_requires='>=3.6',
 
-    package_data={'bifrost_run_launcher': ['config.yaml']},
+    package_data={component['name']: ['config.yaml']},
     include_package_data=True,
 
     install_requires=[

@@ -6,18 +6,19 @@ services:
       args:
         BUILD_ENV: dev
     env_file:
-      - docker-compose.dev.env
+      - .env
   python-tests:
     build:
       context: .
       args:
         BUILD_ENV: dev
-    working_dir: /bifrost_run_launcher/
     env_file:
-      - docker-compose.dev.env
+      - .env
+    working_dir: /${BIFROST_COMPONENT_NAME}/
     volumes:
-      - ./bifrost_run_launcher:/bifrost_run_launcher/bifrost_run_launcher
-      - ./tests:/bifrost_run_launcher/tests
-    entrypoint: watchmedo auto-restart --recursive --pattern="*.py" --directory="/bifrost_run_launcher" -- pytest --verbose
+      - ./${BIFROST_COMPONENT_NAME}:/${BIFROST_COMPONENT_NAME}/${BIFROST_COMPONENT_NAME}
+      - ./tests:/${BIFROST_COMPONENT_NAME}/tests
+      - ../../lib/bifrostlib:/bifrostlib
+    entrypoint: watchmedo auto-restart --recursive --pattern="*.py" --directory="/${BIFROST_COMPONENT_NAME}" -- pytest --verbose
     depends_on:
       - python
