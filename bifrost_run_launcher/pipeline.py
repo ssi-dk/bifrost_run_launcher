@@ -151,7 +151,9 @@ def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "
         return (run, samples)
     except:
         with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
-            print(df)
+            print(df, file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
+            raise Exception("bad metadata and/or rename column file")
 
 def convert_to_datetime(text: str, date_formats = ['%d-%m-%y', '%d-%m-%Y', '%d/%m/%Y']):
     for date_format in date_formats:
