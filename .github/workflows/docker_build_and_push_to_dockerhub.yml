@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Get repo name
       id: getreponame
-      run: echo ::set-env name=REPOSITORY_NAME::${GITHUB_REPOSITORY#*/}
+      run: echo "REPOSITORY_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
     - name: Get version info
       id: getversion
       run: |
