@@ -16,8 +16,8 @@ jobs:
     - name: Get version info
       id: getversion
       run: |
-        echo "::set-env name=CODE_VERSION::$(sed -n 's/^\ \ code:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)"
-        echo "::set-env name=RESOURCE_VERSION::$(sed -n 's/^\ \ resource:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)"
+        echo "CODE_VERSION=$(sed -n 's/^\ \ code:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)" >> $GITHUB_ENV
+        echo "RESOURCE_VERSION=$(sed -n 's/^\ \ resource:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)" >> $GITHUB_ENV
     - name: Build and push Docker images (to test)
       if: github.ref == 'refs/heads/test'
       uses: docker/build-push-action@v1.1.0
