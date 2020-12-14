@@ -1,14 +1,13 @@
-name: Tests
+name: run_tests
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - master
-      - dev
+      - test
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -22,12 +21,12 @@ jobs:
         pip install setuptools wheel twine
     - name: Build docker image
       run: |
-        docker build --build-arg BUILD_ENV=dev -t ${{ github.event.repository.name }} .
+        docker build --build-arg BUILD_ENV=test -t ${{ github.event.repository.name }} .
     - name: Run_tests
       run: >
           docker run 
-          -w /${{ github.event.repository.name }}
+          -w /bifrost/components/${{ github.event.repository.name }}
           --entrypoint "python3"
-          -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/${{ github.event.repository.name }}_test 
+          -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_test 
           ${{ github.event.repository.name }} 
           -m pytest

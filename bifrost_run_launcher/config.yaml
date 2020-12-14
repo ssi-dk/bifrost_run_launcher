@@ -2,10 +2,10 @@
 #   Values in <value> are modified by CI/CD automation. Please see github/workflows for more info
 #-Basic info----------------------------------------------------------------------------------------
 display_name: run_launcher
-name: run_launcher__2.2.0__NA
+name: run_launcher__v2_2_1__NA
 version:
-  schema: 2.0
-  code: 2.2.0
+  schema: ["v2_1_0"]
+  code: v2_2_1
   resource: NA
 note: >
   Currently run components aren't set up properly (probably want to call them collection components)
@@ -20,7 +20,7 @@ note: >
 
 #-Details-------------------------------------------------------------------------------------------
 details:
-  target: run
+  target: [run]
   description: >
     Processes a folder for running in bifrost
 #---------------------------------------------------------------------------------------------------

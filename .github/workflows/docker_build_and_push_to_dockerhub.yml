@@ -1,9 +1,9 @@
-name: Build and push Docker images to Dockerhub
+name: push_to_dockerhub
 on:
   push:
     branches:
       - master
-      - dev
+      - test
 jobs:
   build-n-publish:
     name: Publish Docker 🐳 image 📦 to Dockerhub and create 🏷 for repo
@@ -18,15 +18,15 @@ jobs:
       run: |
         echo "::set-env name=CODE_VERSION::$(sed -n 's/^\ \ code:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)"
         echo "::set-env name=RESOURCE_VERSION::$(sed -n 's/^\ \ resource:\ \(.*\)/\1/p' $REPOSITORY_NAME/config.yaml)"
-    - name: Build and push Docker images (to dev)
-      if: github.ref == 'refs/heads/dev'
+    - name: Build and push Docker images (to test)
+      if: github.ref == 'refs/heads/test'
       uses: docker/build-push-action@v1.1.0
       with:
         username: ${{ secrets.DOCKER_USERNAME }} # optional
         password: ${{ secrets.DOCKER_PASSWORD }} # optional
         repository: ssidk/${{ env.REPOSITORY_NAME }}
-        tags: dev
-        build_args: BUILD_ENV=dev,CODE_VERSION=${{ env.CODE_VERSION }},RESOURCE_VERSION=${{ env.RESOURCE_VERSION }}
+        tags: test
+        build_args: BUILD_ENV=test,CODE_VERSION=${{ env.CODE_VERSION }},RESOURCE_VERSION=${{ env.RESOURCE_VERSION }}
     - name: Build and push Docker images (to latest)
       id: buildmaster
       if: github.ref == 'refs/heads/master'
