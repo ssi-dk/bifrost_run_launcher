@@ -36,7 +36,8 @@ class TestBifrostRunLauncher:
     def teardown_class(cls):
         client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
         db = client.get_database()
-        cls.clear_all_collections(db)
+        
+        # cls.clear_all_collections(db)
 
     @staticmethod
     def clear_all_collections(db):

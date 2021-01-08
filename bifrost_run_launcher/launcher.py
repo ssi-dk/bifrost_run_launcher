@@ -165,6 +165,7 @@ def parse_and_run(args: List[str]) -> None:
             return None
         else:
             pipeline_options, junk = parser.parse_known_args(extras)
+            pipeline_options.component = COMPONENT # Want to access the component as well so forcing it as an option
             if pipeline_options.run_name is None:
                 pipeline_options.run_name = os.path.abspath(pipeline_options.outdir).split("/")[-1]
             if pipeline_options.debug is True:

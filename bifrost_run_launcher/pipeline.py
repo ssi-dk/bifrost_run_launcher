@@ -57,7 +57,7 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]
         df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
-        df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9\-\_]"), "_")
+        df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9-_]"), "_")
         df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
         df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
         df["haveReads"] = False
@@ -73,11 +73,11 @@ def get_sample_names(metadata: pandas.DataFrame) -> List["str"]:
     return list(set(metadata["sample_name"].tolist()))
 
 
-def initialize_run(run: Run, samples: List[Sample], input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None, regex_pattern: str = "^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> Tuple[Run, List[Sample]]:
+def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None, regex_pattern: str = "^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> Tuple[Run, List[Sample]]:
     sample_dict, unused_files = parse_directory(input_folder, regex_pattern, run_metadata)
     metadata = format_metadata(run_metadata, rename_column_file)
     sample_names_in_metadata = get_sample_names(metadata)
-
+ 
     for sample_name in sample_dict:
         if sample_name in sample_names_in_metadata:
             metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
@@ -88,30 +88,24 @@ def initialize_run(run: Run, samples: List[Sample], input_folder: str = ".", run
                 if samples[i]["name"] == sample_name:
                     sample_exists = True
                     sample = samples[i]
-
-            paired_read_value = {
-                "paired_reads": {
-                    "name": "paired_reads",
-                    "summary": {
+            paired_reads = Category(value={
+                "name": "paired_reads",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": {
                         "data": [
                             os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
                             os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
                         ]
-                    }
                 }
-            }
-            paired_reads = Category(value=paired_read_value)
+            })
             sample.set_category(paired_reads)
-
             sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
 
-            sample_info_value = {
-                "sample_info": {
-                    "name": "sample_info",
-                    "summary": sample_metadata
-                }
-            }
-            sample_info = Category(value=sample_info_value)
+            sample_info = Category(value={
+                "name": "sample_info",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": sample_metadata
+            })
             sample.set_category(sample_info)
 
             sample.save()
@@ -208,7 +202,7 @@ def run_pipeline(args: object) -> None:
 
     if "_id" not in run:
         # Check here is to ensure run isn't in DB
-        run, samples = initialize_run(run=run, samples=samples, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap)
+        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap)
         
         print(f"Run {run['name']} and samples added to DB")
 
