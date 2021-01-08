@@ -25,38 +25,52 @@ class TestBifrostRunLauncher:
     json_entries = [{"_id": {"$oid": "000000000000000000000001"}, "name": "test_component1"}]
     bson_entries = [database_interface.json_to_bson(i) for i in json_entries]
 
-    @pytest.fixture
-    def setUp(self, test_connection):
+    @classmethod
+    def setup_class(cls):
         client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
         db = client.get_database()
-        db.drop_collection("components")
+        cls.clear_all_collections(db)
         launcher.initialize()
 
-    def test_info(self, setUp):
+    @classmethod
+    def teardown_class(cls):
+        client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
+        db = client.get_database()
+        cls.clear_all_collections(db)
+
+    @staticmethod
+    def clear_all_collections(db):
+        db.drop_collection("components")
+        db.drop_collection("hosts")
+        db.drop_collection("run_components")
+        db.drop_collection("runs")
+        db.drop_collection("sample_components")
+        db.drop_collection("samples")
+
+    def test_info(self):
         launcher.run_pipeline(["--info"])
 
-    def test_help(self, setUp):
+    def test_help(self):
         launcher.run_pipeline(["--help"])
 
-    def test_pipeline(self, setUp):
+    def test_pipeline(self):
         bifrost_config_and_data_path = "/bifrost/test_data"
         if os.path.isdir(f"{bifrost_config_and_data_path}/test_dir"):
             shutil.rmtree(f"{bifrost_config_and_data_path}/test_dir")
 
         os.mkdir(f"{bifrost_config_and_data_path}/test_dir")
-        test_args = Namespace(
-            outdir=f"{bifrost_config_and_data_path}/test_dir",
-            pre_script=f"{bifrost_config_and_data_path}/pre.sh",
-            per_sample_script=f"{bifrost_config_and_data_path}/per_sample.sh",
-            post_script=f"{bifrost_config_and_data_path}/post.sh",
-            run_metadata=f"{bifrost_config_and_data_path}/run_metadata.tsv",
-            reads_folder=f"{bifrost_config_and_data_path}/read_data",
-            run_name="bifrost_test",
-            run_type="test",
-            run_id=None,
-            run_metadata_column_remap=None
-            )
-        launcher.run_pipeline(test_args)
+        test_args = [
+            "--outdir", f"{bifrost_config_and_data_path}/test_dir",
+            "--pre_script", f"{bifrost_config_and_data_path}/pre.sh",
+            "--per_sample_script", f"{bifrost_config_and_data_path}/per_sample.sh",
+            "--post_script",f"{bifrost_config_and_data_path}/post.sh",
+            "--run_metadata", f"{bifrost_config_and_data_path}/run_metadata.tsv",
+            "--reads_folder", f"{bifrost_config_and_data_path}/samples",
+            "--run_name", "bifrost_test",
+            "--run_type", "test"
+        ]
+        launcher.main(args=test_args)
+        #clear collection
         assert os.path.isfile(f"{bifrost_config_and_data_path}/test_dir/run_script.sh")
         assert os.path.isfile(f"{bifrost_config_and_data_path}/test_dir/run.yaml")
         assert os.path.isfile(f"{bifrost_config_and_data_path}/test_dir/samples.yaml")

@@ -82,7 +82,7 @@ def initialize_run(run: Run, samples: List[Sample], input_folder: str = ".", run
         if sample_name in sample_names_in_metadata:
             metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
             metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
-            sample = Sample(name=sample_name)
+            sample = Sample(name=run.sample_name_generator(sample_name))
             sample_exists = False
             for i in range(len(samples)):
                 if samples[i]["name"] == sample_name:
@@ -91,13 +91,12 @@ def initialize_run(run: Run, samples: List[Sample], input_folder: str = ".", run
 
             paired_read_value = {
                 "paired_reads": {
-                    "v2_1_0": {
-                        "summary": {
-                            "data": [
-                                os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
-                                os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
-                            ]
-                        }
+                    "name": "paired_reads",
+                    "summary": {
+                        "data": [
+                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
+                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
+                        ]
                     }
                 }
             }
@@ -108,9 +107,8 @@ def initialize_run(run: Run, samples: List[Sample], input_folder: str = ".", run
 
             sample_info_value = {
                 "sample_info": {
-                    "v2_1_0": {
-                        "summary": sample_metadata
-                    }
+                    "name": "sample_info",
+                    "summary": sample_metadata
                 }
             }
             sample_info = Category(value=sample_info_value)

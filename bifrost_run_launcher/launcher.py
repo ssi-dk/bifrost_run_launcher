@@ -17,6 +17,7 @@ from typing import List, Dict
 
 global COMPONENT
 
+
 def initialize():
     with open(os.path.join(os.path.dirname(__file__), 'config.yaml')) as fh:
         config: Dict = yaml.load(fh, Loader=yaml.FullLoader)
@@ -28,11 +29,12 @@ def initialize():
     try:
         component_ref = ComponentReference(name=config["name"])
         COMPONENT = Component.load(component_ref)
-        if '_id' in COMPONENT.json:
+        if COMPONENT is not None and '_id' in COMPONENT.json:
             return
-        COMPONENT = Component(value=config)
-        print(Component.json)
-        install_component()
+        else:
+            COMPONENT = Component(value=config)
+            install_component()
+
     except Exception as e:
         print(traceback.format_exc(), file=sys.stderr)
     return
@@ -63,10 +65,7 @@ class types():
             raise argparse.ArgumentTypeError(f"{path} #Bad directory path")
 
 
-def parse_and_run(args: List[str]):
-    """
-    Arg parsing via argparse
-    """
+def parse_and_run(args: List[str]) -> None:
     description: str = (
         f"-Description------------------------------------\n"
         f"{COMPONENT['details']['description']}"
@@ -165,7 +164,7 @@ def parse_and_run(args: List[str]):
             show_info()
             return None
         else:
-            pipeline_options = parser.parse_args(extras)
+            pipeline_options, junk = parser.parse_known_args(extras)
             if pipeline_options.run_name is None:
                 pipeline_options.run_name = os.path.abspath(pipeline_options.outdir).split("/")[-1]
             if pipeline_options.debug is True:
@@ -185,9 +184,9 @@ def run_pipeline(args: object):
         print(traceback.format_exc())
 
 
-def main():
+def main(args=sys.argv):
     initialize()
-    parse_and_run(sys.argv[1:])
+    parse_and_run(args)
 
 
 if __name__ == '__main__':
