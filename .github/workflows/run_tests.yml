@@ -24,9 +24,6 @@ jobs:
         docker build --build-arg BUILD_ENV=test -t ${{ github.event.repository.name }} .
     - name: Get_tests_data
       run: >
-          ls;
-          pwd;
-          git clone https://github.com/ssi-dk/bifrostlib.git;
           git clone https://github.com/ssi-dk/bifrost_test_data.git;
           cd bifrost_test_data/samples;
           bash download_S1.sh
@@ -34,7 +31,6 @@ jobs:
       run: >
           docker run 
           -w /bifrost/components/${{ github.event.repository.name }}
-          -v /home/runner/work/bifrost_run_launcher/bifrost_run_launcher/bifrostlib:/bifrost/bifrostlib
           -v /home/runner/work/bifrost_run_launcher/bifrost_run_launcher/bifrost_test_data:/bifrost/test_data
           --entrypoint "python3"
           -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_test 
