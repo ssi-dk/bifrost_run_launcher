@@ -9,7 +9,7 @@ setup(
     author_email="kimn@ssi.dk",
     packages=find_packages(),
     install_requires=[
-        'bifrostlib >= 2.1.2',
+        'bifrostlib >= 2.1.3',
     ],
     package_data={"bifrost_run_launcher": ['config.yaml']},
     include_package_data=True
