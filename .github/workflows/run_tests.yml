@@ -33,7 +33,7 @@ jobs:
       run: >
           docker run 
           -w /bifrost/components/${{ github.event.repository.name }}
-          -v /home/runner/work/bifrost_run_launcher/bifrost_run_launcher/bifrost_test_data:/bifrost/bifrost_test_data
+          -v /home/runner/work/bifrost_run_launcher/bifrost_run_launcher/bifrost_test_data:/bifrost/test_data
           --entrypoint "python3"
           -e BIFROST_DB_KEY=${{ secrets.MONGODB_ATLAS_CONNECTION }}/bifrost_test 
           ${{ github.event.repository.name }} 
