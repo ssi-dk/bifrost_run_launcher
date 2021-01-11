@@ -2,4 +2,4 @@
 from bifrost_run_launcher import launcher
 
 if __name__ == '__main__':
-    launcher.run()
+    launcher.main()

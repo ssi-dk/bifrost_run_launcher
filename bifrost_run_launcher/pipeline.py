@@ -2,171 +2,145 @@
 """
 Initialization program for paired end Illumina reads
 """
-import argparse
 import re
-import sys
 import os
-import numpy
-import pandas
+from sys import stderr
 import traceback
+import pandas
 import json
-import subprocess
-import datetime
-from bifrostlib import datahandling
-from bifrostlib import mongo_interface
-from typing import Tuple
+import sys
+from bifrostlib.datahandling import RunReference
+from bifrostlib.datahandling import Run
+from bifrostlib.datahandling import Sample
+from bifrostlib.datahandling import Category
+from bifrostlib.datahandling import Component
 import pprint
+from typing import List, Set, Dict, TextIO, Pattern, Tuple
 
 os.umask(0o2)
-pp = pprint.PrettyPrinter(indent=4)
 
 
-# def parse_args(args) -> object:
-#     parser: argparse.ArgumentParser = argparse.ArgumentParser()
-#     parser.add_argument('-pre', '--pre_script',
-#                         required=True,
-#                         help='Pre script template run before sample script')
-#     parser.add_argument('-per', '--per_sample_script',
-#                         required=True,
-#                         help='Per sample script template run on each sample')
-#     parser.add_argument('-post', '--post_script',
-#                         required=True,
-#                         help='Post script template run after sample script')
-#     parser.add_argument('-meta', '--run_metadata',
-#                         required=True,
-#                         help='Run metadata tsv')
-#     parser.add_argument('-reads', '--reads_folder',
-#                         required=True,
-#                         help='Run metadata tsv')
-#     parser.add_argument('-name', '--run_name',
-#                         default=None,
-#                         help='Run name, if not provided it will default to current folder name')
-#     parser.add_argument('-type', '--run_type',
-#                         default=None,
-#                         help='Run type for metadata organization')
-#     parser.add_argument('-metamap', '--run_metadata_column_remap',
-#                         default=None,
-#                         help='Remaps metadata tsv columns to bifrost values')
-#     parser_args: argparse.Namespace = parser.parse_args()
+def parse_directory(directory: str, sample_pattern: Pattern, run_metadata: TextIO) -> Tuple[Dict, List[str]]:
+    all_paths: List[str] = os.listdir(directory)
+    potential_samples: List[str] = [i for i in all_paths if re.search(sample_pattern, i)]
+    potential_samples.sort() # exploit that reads are saved as 1,2 for paired reads
+    unused_files: List[str] = list(set(all_paths) - set(potential_samples))
 
-#     setup_run(parser_args)
-
-
-def initialize_run(run_name: str, input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None, regex_pattern: str ="^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> Tuple:
-    all_items_in_dir = os.listdir(input_folder)
-    potential_samples = [(i, re.search(regex_pattern,i).group("sample_name"),  re.search(regex_pattern,i).group("paired_read_number")) for i in all_items_in_dir if re.search(regex_pattern,i)]
-    potential_samples.sort()
-    in_dir = set(all_items_in_dir)
     sample_dict = {}
+    for sample_file in potential_samples:
+        sample_name = re.search(sample_pattern, sample_file).group("sample_name")
+        sample_dict[sample_name] = sample_dict.get(sample_name, [])
+        sample_dict[sample_name].append(sample_file)
 
-    for item in potential_samples:
-        in_dir.remove(item[0])
-
-    for item in potential_samples:
-        sample_dict[item[1]] = []
-
-    for item in potential_samples:
-        sample_dict[item[1]].append(item[0])
-
-    unused_files = []
-    for item in potential_samples:
-        if len(sample_dict[item[1]]) != 2:
-            in_dir.add(item[0])
-            sample_dict.pop(item[1])
-
-    unused_files = list(in_dir)
-    unused_files.sort()
-
-    if os.path.isfile(run_metadata):
-        if run_metadata in unused_files:
+    for sample_file in potential_samples:
+        sample_name = re.search(sample_pattern, sample_file).group("sample_name")
+        if sample_dict.get(sample_name,[]) and len(sample_dict[sample_name]) != 2:
+            unused_files.append(sample_file)
+            sample_dict.pop(sample_name)
+        
+        if os.path.isfile(run_metadata) and run_metadata in unused_files:
             unused_files.pop(unused_files.index(run_metadata))
 
-    df = pandas.read_table(run_metadata)
-    #HACK Doing this cause I haven't set up error handling properly yet so printing pandas DataFrame when I need
+    return (sample_dict, unused_files)
+
+
+def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> pandas.DataFrame:
+    df = None
     try:
+        df = pandas.read_table(run_metadata)
         if rename_column_file is not None:
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
-        sample_key = "sample_name"
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        samples_no_index = df[df[sample_key].isna()].index
+        samples_no_index = df[df["sample_name"].isna()].index
         df = df.drop(samples_no_index)
-        df[sample_key] = df[sample_key].astype('str')
-        df["temp_sample_name"] = df[sample_key]
-        df[sample_key] = df[sample_key].apply(lambda x: x.strip())
-        df[sample_key] = df[sample_key].str.replace(re.compile("[^a-zA-Z0-9\-\_]"),"_")
+        df["sample_name"] = df["sample_name"].astype('str')
+        df["temp_sample_name"] = df["sample_name"]
+        df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
+        df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9-_]"), "_")
         df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
-        df["duplicated_sample_names"] = df.duplicated(subset=sample_key,keep="first")
-        valid_sample_names = list(set(df[sample_key].tolist()))
+        df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
         df["haveReads"] = False
         df["haveMetaData"] = True
-
-        samples = []
-        run = datahandling.Run(name=run_name)
-
-        for sample in sample_dict:
-            if sample in valid_sample_names:
-                df.loc[df[sample_key] == sample, "haveMetaData"] = True
-                df.loc[df[sample_key] == sample, "haveReads"] = True
-                sampleObj = datahandling.Sample(name=sample)
-                datafiles = datahandling.Category(name="paired_reads")
-                datafiles.set_summary({"data": [os.path.abspath(os.path.join(input_folder, sample_dict[sample][0])), os.path.abspath(os.path.join(input_folder, sample_dict[sample][1]))]})
-                sampleObj.set_properties_paired_reads(datafiles)
-                sample_info = datahandling.Category(name="sample_info")
-                # This statement is a bit hacky, it converts to json and decodes json. This is chosen over .to_dict as that maintains numpy datatypes and I want python data types
-                metadata_dict = json.loads(df.iloc[df[df[sample_key] == sample].index[0]].to_json())
-                #HACK: Fix to bring dates as datetime
-                for key in metadata_dict:
-                    if key.upper().endswith("DATE") and metadata_dict[key] is not None:
-                        metadata_dict[key] = convert_to_datetime(metadata_dict[key])
-                sample_info.set_summary(metadata_dict)
-                sampleObj.set_properties_sample_info(sample_info)
-                sampleObj.save()
-                # pp.pprint(sampleObj.display())
-                samples.append(sampleObj)
-            else:
-                new_row_df = pandas.DataFrame({'sample_name':[sample], 'haveReads':[True], 'haveMetaData':[False]})
-                df = df.append(new_row_df, ignore_index=True, sort=False)
-
-        run.set_type(run_type)
-        run.set_path(os.getcwd())
-        run.set_samples(samples)
-        run.set_issues(
-            duplicate_samples = list(df[df['duplicated_sample_names']==True]['sample_name']),
-            modified_samples = list(df[df['changed_sample_names']==True]['sample_name']),
-            unused_files = unused_files,
-            samples_without_reads = list(df[df['haveReads']==False]['sample_name']),
-            samples_without_metadata = list(df[df['haveMetaData']==False]['sample_name'])
-        )
-        # Note when you save the run you create the ID's
-        run.save() 
-        # pp.pprint(run.display())
-        # df.to_csv("test.txt")
-        with open("run.yaml", "w") as fh:
-            fh.write(pprint.pformat(run.display()))
-        with open("samples.yaml", "w") as fh:
-            for sample in samples:
-                fh.write(pprint.pformat(sample.display()))
-
-        return (run, samples)
+        return df
     except:
         with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
-            print(df)
+            print(df, file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
+            raise Exception("bad metadata and/or rename column file")
 
-def convert_to_datetime(text: str, date_formats = ['%d-%m-%y', '%d-%m-%Y', '%d/%m/%Y']):
-    for date_format in date_formats:
-        try:
-            return datetime.datetime.strptime(text, date_format)
-        except ValueError:
-            pass
-    raise ValueError('Date format not found or invalid')
+def get_sample_names(metadata: pandas.DataFrame) -> List["str"]:
+    return list(set(metadata["sample_name"].tolist()))
+
+
+def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None, regex_pattern: str = "^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> Tuple[Run, List[Sample]]:
+    sample_dict, unused_files = parse_directory(input_folder, regex_pattern, run_metadata)
+    metadata = format_metadata(run_metadata, rename_column_file)
+    sample_names_in_metadata = get_sample_names(metadata)
+ 
+    for sample_name in sample_dict:
+        if sample_name in sample_names_in_metadata:
+            metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
+            metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
+            sample = Sample(name=run.sample_name_generator(sample_name))
+            sample_exists = False
+            for i in range(len(samples)):
+                if samples[i]["name"] == sample_name:
+                    sample_exists = True
+                    sample = samples[i]
+            paired_reads = Category(value={
+                "name": "paired_reads",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": {
+                        "data": [
+                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
+                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
+                        ]
+                }
+            })
+            sample.set_category(paired_reads)
+            sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
+
+            sample_info = Category(value={
+                "name": "sample_info",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": sample_metadata
+            })
+            sample.set_category(sample_info)
+
+            sample.save()
+            if sample_exists is False:
+                samples.append(sample)
+        else:
+            metadata_new_row = pandas.DataFrame({'sample_name': [sample_name], 'haveReads': [True], 'haveMetaData': [False]})
+            metadata = metadata.append(metadata_new_row, ignore_index=True, sort=False)
+
+    run["type"] = run_type
+    run["path"] = os.getcwd()
+    run["issues"] = {
+        "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
+        "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
+        "unused_files": unused_files,
+        "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
+        "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
+    }
+    run.samples = [i.to_reference() for i in samples]
+    run.save()
+
+    with open("run.yaml", "w") as fh:
+        fh.write(pprint.pformat(run.json))
+    with open("samples.yaml", "w") as fh:
+        for sample in samples:
+            fh.write(pprint.pformat(sample.json))
+
+    return (run, samples)
 
 
 def replace_run_info_in_script(script: str, run: object) -> str:
     positions_to_replace = re.findall(re.compile("\$run.[a-zA-Z]+"), script)
     for item in positions_to_replace:
         (key, value) = (item.split("."))
-        script = script.replace(item, run.get(value))
+        script = script.replace(item, run[value])
     return script
 
 
@@ -174,7 +148,7 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
     positions_to_replace = re.findall(re.compile("\$sample\.[\.\[\]_a-zA-Z0-9]+"), script)
     for item in positions_to_replace:
         (item.split(".")[1:])
-        level = sample.display()
+        level = sample.json
         for value in item.split(".")[1:]:
             if value.endswith("]"):
                 (array_item, index) = value.split("[")
@@ -189,7 +163,7 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
     return script
 
 
-def generate_run_script(run: object, samples: object, pre_script_location: str, per_sample_script_location: str, post_script_location: str) -> str:
+def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per_sample_script_location: str, post_script_location: str) -> str:
     script = ""
     if pre_script_location != None:
         with open(pre_script_location, "r") as pre_script_file:
@@ -215,42 +189,33 @@ def run_pipeline(args: object) -> None:
     if not os.path.isdir(args.outdir):
         os.makedirs(args.outdir)
     os.chdir(args.outdir)
-    run_name = args.run_name
-    runs = mongo_interface.get_runs(names=[run_name])
 
-    run, samples = None, None
-    if args.run_id is not None and len(runs) == 0:
-        print(f"{args.run_id} not found in DB")
-    elif args.run_id is not None and len(runs) > 0:
-        run = datahandling.Run(_id=args.run_id)
-        run_samples = run.get("samples")
-        samples = []
-        for sample_ref in run_samples:
-            samples.append(datahandling.Sample(_id=sample_ref["_id"]))
-        print(f"Run and samples loaded from DB")
-    elif args.run_id is None and len(runs) > 0:
-        print(f"{args.run_name} already exists in DB (unique field)")
-    elif args.run_id is None and len(runs) == 0:
-        run, samples = initialize_run(
-            run_name=run_name,
-            input_folder=args.reads_folder,
-            run_metadata=args.run_metadata,
-            run_type=args.run_type,
-            rename_column_file=args.run_metadata_column_remap
-            )
-        print(f"Run {args.run_name} and samples added to DB")
+    run_reference = RunReference(_id = args.run_id, name = args.run_name)
+    if "_id" in run_reference:
+        run: Run = Run.load(run_reference)
+    else:
+        run: Run = Run(name=args.run_name)
 
-    if run is not None:
-        script = generate_run_script(
-            run,
-            samples,
-            args.pre_script,
-            args.per_sample_script,
-            args.post_script)
-        with open("run_script.sh", "w") as fh:
-            fh.write(script)
+    samples: List[Sample] = []
+    for sample_reference in run.samples:
+        samples.append(Sample.load(sample_reference))
 
-        print("Done, to run execute bash run_script.sh")
+    if "_id" not in run:
+        # Check here is to ensure run isn't in DB
+        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap)
+        
+        print(f"Run {run['name']} and samples added to DB")
+
+    script = generate_run_script(
+        run,
+        samples,
+        args.pre_script,
+        args.per_sample_script,
+        args.post_script)
+    with open("run_script.sh", "w") as fh:
+        fh.write(script)
+
+    print("Done, to run execute bash run_script.sh")
 
 # if __name__ == "__main__":
 #     parse_args(sys.argv[1:])

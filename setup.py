@@ -2,23 +2,15 @@ from setuptools import setup, find_packages
 
 setup(
     name='bifrost_run_launcher',
-    version='temp',
+    version='v2_2_1',
+    description='Datahandling functions for bifrost (later to be API interface)',
     url='https://github.com/ssi-dk/bifrost_run_launcher',
-
-    # Author details
-    author='Kim Ng',
-    author_email='kimn@ssi.dk',
-
-    # Choose your license
-    license='MIT',
-
+    author="Kim Ng, Martin Basterrechea",
+    author_email="kimn@ssi.dk",
     packages=find_packages(),
-    python_requires='>=3.6',
-
-    package_data={'bifrost_run_launcher': ['config.yaml']},
-    include_package_data=True,
-
     install_requires=[
-        'bifrostlib==2.0.11'
-    ]
-)
+        'bifrostlib >= 2.1.3',
+    ],
+    package_data={"bifrost_run_launcher": ['config.yaml']},
+    include_package_data=True
+    )
