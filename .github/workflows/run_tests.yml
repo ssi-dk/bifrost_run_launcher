@@ -22,6 +22,13 @@ jobs:
     - name: Build docker image
       run: |
         docker build --build-arg BUILD_ENV=test -t ${{ github.event.repository.name }} .
+    - name: Get_tests_data
+      run: >
+          mkdir -p /bifrost/;
+          cd /bifrost/;
+          git clone https://github.com/ssi-dk/bifrost_test_data.git;
+          cd bifrost_test_data/samples;
+          bash download_S1.sh
     - name: Run_tests
       run: >
           docker run 
