@@ -43,7 +43,9 @@ ONBUILD RUN \
 # Details
 #---------------------------------------------------------------------------------------------------
 FROM build_${BUILD_ENV}
-ARG BIFROST_COMPONENT_NAME
+ONBUILD ARG BIFROST_COMPONENT_NAME
+ONBUILD ARG BUILD_ENV
+ONBUILD ARG MAINTAINER
 LABEL \
     BIFROST_COMPONENT_NAME=${BIFROST_COMPONENT_NAME} \
     description="Docker environment for ${BIFROST_COMPONENT_NAME}" \
