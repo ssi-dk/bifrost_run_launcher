@@ -42,4 +42,4 @@ jobs:
       if: github.ref == 'refs/heads/master'
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
-        tag: v${{ env.CODE_VERSION }}__${{ env.RESOURCE_VERSION }}
+        tag: ${{ env.CODE_VERSION }}__${{ env.RESOURCE_VERSION }}
