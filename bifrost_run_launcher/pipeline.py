@@ -83,6 +83,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
             metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
             sample = Sample(name=run.sample_name_generator(sample_name))
+            sample["display_name"] = sample_name
             sample_exists = False
             for i in range(len(samples)):
                 if samples[i]["name"] == sample_name:
@@ -100,7 +101,6 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             })
             sample.set_category(paired_reads)
             sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
-
             sample_info = Category(value={
                 "name": "sample_info",
                 "component": {"id": component["_id"], "name": component["name"]},
