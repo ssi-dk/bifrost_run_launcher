@@ -61,13 +61,12 @@ class TestBifrostRunLauncher:
 
         bifrost_config_and_data_path = "/bifrost/test_data"
 
-        def test_pipeline(self):
-            if os.path.isdir(self.test_dir):
-                shutil.rmtree(self.test_dir)
+        if os.path.isdir(self.test_dir):
+            shutil.rmtree(self.test_dir)
 
         os.mkdir(self.test_dir)
         test_args = [
-            "--outdir", f"{self.test_dir}",
+            "--outdir", f"{self.test_dir}/{self.component_name}",
             "--pre_script", f"{bifrost_config_and_data_path}/pre.sh",
             "--per_sample_script", f"{bifrost_config_and_data_path}/per_sample.sh",
             "--post_script",f"{bifrost_config_and_data_path}/post.sh",
