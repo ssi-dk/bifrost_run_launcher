@@ -6,3 +6,11 @@ containing all the sample objects. A script is then created based of the provide
 scripts that can are customized to each install. Running this script will then create 
 sample_component objects as each sample will be ran against the provided components in the per 
 script
+
+## Programs: (see Dockerfile) 
+```
+```
+
+## Summary of c run: (see pipeline.smk and config.yaml)
+```
+```
