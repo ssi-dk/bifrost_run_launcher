@@ -22,7 +22,11 @@ def test_connection():
     assert "TEST" in os.environ['BIFROST_DB_KEY'].upper()  # A very basic piece of protection ensuring the word test is in the DB
 
 class TestBifrostRunLauncher:
+    component_name = "run_launcher__v2_2_3"
+    test_dir = "/bifrost/test_data/output/test__run_launcher/"
+    current_dir = os.getcwd()
     json_entries = [{"_id": {"$oid": "000000000000000000000001"}, "name": "test_component1"}]
+
     bson_entries = [database_interface.json_to_bson(i) for i in json_entries]
 
     @classmethod
@@ -36,8 +40,7 @@ class TestBifrostRunLauncher:
     def teardown_class(cls):
         client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
         db = client.get_database()
-        
-        # cls.clear_all_collections(db)
+        cls.clear_all_collections(db)
 
     @staticmethod
     def clear_all_collections(db):
@@ -55,13 +58,15 @@ class TestBifrostRunLauncher:
         launcher.run_pipeline(["--help"])
 
     def test_pipeline(self):
-        bifrost_config_and_data_path = "/bifrost/test_data"
-        if os.path.isdir(f"{bifrost_config_and_data_path}/test_dir"):
-            shutil.rmtree(f"{bifrost_config_and_data_path}/test_dir")
 
-        os.mkdir(f"{bifrost_config_and_data_path}/test_dir")
+        bifrost_config_and_data_path = "/bifrost/test_data"
+
+        if os.path.isdir(self.test_dir):
+            shutil.rmtree(self.test_dir)
+
+        os.mkdir(self.test_dir)
         test_args = [
-            "--outdir", f"{bifrost_config_and_data_path}/test_dir",
+            "--outdir", f"{self.test_dir}/{self.component_name}",
             "--pre_script", f"{bifrost_config_and_data_path}/pre.sh",
             "--per_sample_script", f"{bifrost_config_and_data_path}/per_sample.sh",
             "--post_script",f"{bifrost_config_and_data_path}/post.sh",
@@ -72,10 +77,10 @@ class TestBifrostRunLauncher:
         ]
         launcher.main(args=test_args)
         #clear collection
-        assert os.path.isfile(f"{bifrost_config_and_data_path}/test_dir/run_script.sh")
-        assert os.path.isfile(f"{bifrost_config_and_data_path}/test_dir/run.yaml")
-        assert os.path.isfile(f"{bifrost_config_and_data_path}/test_dir/samples.yaml")
-        shutil.rmtree(f"{bifrost_config_and_data_path}/test_dir")
-        assert not os.path.isdir(f"{bifrost_config_and_data_path}/test_dir")
+        assert os.path.isfile(f"{self.test_dir}/{self.component_name}/run_script.sh")
+        assert os.path.isfile(f"{self.test_dir}/{self.component_name}/run.yaml")
+        assert os.path.isfile(f"{self.test_dir}/{self.component_name}/samples.yaml")
+        shutil.rmtree(self.test_dir)
+        assert not os.path.isdir(f"{self.test_dir}/{self.component_name}")
 
 
