@@ -22,7 +22,7 @@ def test_connection():
     assert "TEST" in os.environ['BIFROST_DB_KEY'].upper()  # A very basic piece of protection ensuring the word test is in the DB
 
 class TestBifrostRunLauncher:
-    component_name = "run_launcher__v2_2_5__"
+    component_name = "run_launcher__v2_2_5"
     test_dir = "/bifrost/test_data/output/test__run_launcher/"
     current_dir = os.getcwd()
     json_entries = [{"_id": {"$oid": "000000000000000000000001"}, "name": "test_component1"}]

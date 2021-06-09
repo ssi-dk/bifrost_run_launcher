@@ -24,13 +24,13 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
     all_files: List[str] = os.listdir(directory)
     unused_files: Set[str] = set(all_files)
     sample_dict = {}
-    for file1,file2 in file_name_list:
-        if file1 in all_files and file2 in all_files:
-            unused_files.discard(file1)
-            unused_files.discard(file2)
-            sample_name = run_metadata.loc[lambda df: df["filenames"]==(file1, file2),"sample_name"]
+    for sample_file1, sample_file2 in file_name_list:
+        if sample_file1 in all_files and sample_file2 in all_files:
+            unused_files.discard(sample_file1)
+            unused_files.discard(sample_file2)
+            sample_name = run_metadata.loc[lambda df: df["filenames"]==(sample_file1, sample_file2),"sample_name"]
             for n in sample_name:
-                sample_dict[n] = [file1, file2]
+                sample_dict[n] = [sample_file1, sample_file2]
 
     unused_files.discard(run_metadata_filename)
 
@@ -55,7 +55,7 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
         df["haveReads"] = False
         df["haveMetaData"] = True
-        df["filenames"] = df["filename"].apply(lambda x: tuple(x.strip().split(' ',2)))
+        df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/',2)))
         return df
     except:
         with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
