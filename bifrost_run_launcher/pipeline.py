@@ -17,23 +17,25 @@ from bifrostlib.datahandling import Component
 import pprint
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
 
-os.umask(0o2)
+os.umask(0o002)
 
 
 def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pandas.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
-    all_files: List[str] = os.listdir(directory)
-    unused_files: Set[str] = set(all_files)
+    all_files: Set[str] = set(os.listdir(directory))
+    unused_files: Set[str] = all_files
     sample_dict = {}
-    for sample_file1, sample_file2 in file_name_list:
-        if sample_file1 in all_files and sample_file2 in all_files:
-            unused_files.discard(sample_file1)
-            unused_files.discard(sample_file2)
-            sample_name = run_metadata.loc[lambda df: df["filenames"]==(sample_file1, sample_file2),"sample_name"]
+    for sample_files in file_name_list:
+        # Downstream it is assumed that there are exactly two sequence files, 
+        # so we test and complain here if that is not the case.
+        if len(sample_files) != 2:
+            print("Sample files:\n"+"\n".join(sample_files),file=sys.stderr)
+            raise ValueError("Number of sequence files is not two")
+        if all_files.issuperset(sample_files):
+            unused_files.difference_update(sample_files)
+            sample_name = run_metadata.loc[lambda df: df["filenames"] == sample_files, "sample_name"]
             for n in sample_name:
-                sample_dict[n] = [sample_file1, sample_file2]
-
+                sample_dict[n] = list(sample_files)
     unused_files.discard(run_metadata_filename)
-
     return (sample_dict, list(unused_files))
 
 
@@ -55,7 +57,7 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
         df["haveReads"] = False
         df["haveMetaData"] = True
-        df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/',2)))
+        df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/')))
         return df
     except:
         with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -82,7 +84,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
         sample = Sample(name=run.sample_name_generator(sample_name))
-        sample.run = run_reference
+        sample["run"] = run_reference
         sample["display_name"] = sample_name
         sample_exists = False
         for i in range(len(samples)):
@@ -100,8 +102,6 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             }
         })
         sample.set_category(paired_reads)
-        print(metadata)
-        print(sample_name)
         sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
         sample_info = Category(value={
             "name": "sample_info",
