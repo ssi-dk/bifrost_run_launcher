@@ -3,9 +3,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## v2_2_4 - 2021-04-09
+
+## [v2_2_5] - 2021-06-09
+Changed the way read files are found, from files matching a regex to filenames in the run_metadata.tsv file.
+
 ### Changed
-added pip install requirements.txt in prod environment
+ - bifrost_run_launcher/pipeline.py
+
+## [v2_2_4] - 2021-04-09
+Added pip install requirements.txt in prod environment
+### Changed
+- Dockerfile
 
 ## [v2_2_3] - 2021-02-17
 Updates to bifrostlib to fix datetime bug

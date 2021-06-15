@@ -20,28 +20,21 @@ from typing import List, Set, Dict, TextIO, Pattern, Tuple
 os.umask(0o2)
 
 
-def parse_directory(directory: str, sample_pattern: Pattern, run_metadata: TextIO) -> Tuple[Dict, List[str]]:
-    all_paths: List[str] = os.listdir(directory)
-    potential_samples: List[str] = [i for i in all_paths if re.search(sample_pattern, i)]
-    potential_samples.sort() # exploit that reads are saved as 1,2 for paired reads
-    unused_files: List[str] = list(set(all_paths) - set(potential_samples))
-
+def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pandas.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
+    all_files: List[str] = os.listdir(directory)
+    unused_files: Set[str] = set(all_files)
     sample_dict = {}
-    for sample_file in potential_samples:
-        sample_name = re.search(sample_pattern, sample_file).group("sample_name")
-        sample_dict[sample_name] = sample_dict.get(sample_name, [])
-        sample_dict[sample_name].append(sample_file)
+    for sample_file1, sample_file2 in file_name_list:
+        if sample_file1 in all_files and sample_file2 in all_files:
+            unused_files.discard(sample_file1)
+            unused_files.discard(sample_file2)
+            sample_name = run_metadata.loc[lambda df: df["filenames"]==(sample_file1, sample_file2),"sample_name"]
+            for n in sample_name:
+                sample_dict[n] = [sample_file1, sample_file2]
 
-    for sample_file in potential_samples:
-        sample_name = re.search(sample_pattern, sample_file).group("sample_name")
-        if sample_dict.get(sample_name,[]) and len(sample_dict[sample_name]) != 2:
-            unused_files.append(sample_file)
-            sample_dict.pop(sample_name)
-        
-        if os.path.isfile(run_metadata) and run_metadata in unused_files:
-            unused_files.pop(unused_files.index(run_metadata))
+    unused_files.discard(run_metadata_filename)
 
-    return (sample_dict, unused_files)
+    return (sample_dict, list(unused_files))
 
 
 def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> pandas.DataFrame:
@@ -62,6 +55,7 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
         df["haveReads"] = False
         df["haveMetaData"] = True
+        df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/',2)))
         return df
     except:
         with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -72,48 +66,53 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
 def get_sample_names(metadata: pandas.DataFrame) -> List["str"]:
     return list(set(metadata["sample_name"].tolist()))
 
+def get_file_pairs(metadata: pandas.DataFrame) -> List[Tuple[str,str]]:
+    return list(set(metadata["filenames"].tolist()))
 
-def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".", run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None, regex_pattern: str = "^(?P<sample_name>[a-zA-Z0-9\_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$") -> Tuple[Run, List[Sample]]:
-    sample_dict, unused_files = parse_directory(input_folder, regex_pattern, run_metadata)
+
+def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
+                   run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
+                   regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$"
+                   ) -> Tuple[Run, List[Sample]]:
     metadata = format_metadata(run_metadata, rename_column_file)
-    sample_names_in_metadata = get_sample_names(metadata)
- 
+    file_names_in_metadata = get_file_pairs(metadata)
+    sample_dict, unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
+    run_reference = run.to_reference()
     for sample_name in sample_dict:
-        if sample_name in sample_names_in_metadata:
-            metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
-            metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
-            sample = Sample(name=run.sample_name_generator(sample_name))
-            sample["display_name"] = sample_name
-            sample_exists = False
-            for i in range(len(samples)):
-                if samples[i]["name"] == sample_name:
-                    sample_exists = True
-                    sample = samples[i]
-            paired_reads = Category(value={
-                "name": "paired_reads",
-                "component": {"id": component["_id"], "name": component["name"]},
-                "summary": {
-                        "data": [
-                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
-                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
-                        ]
-                }
-            })
-            sample.set_category(paired_reads)
-            sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
-            sample_info = Category(value={
-                "name": "sample_info",
-                "component": {"id": component["_id"], "name": component["name"]},
-                "summary": sample_metadata
-            })
-            sample.set_category(sample_info)
+        metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
+        metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
+        sample = Sample(name=run.sample_name_generator(sample_name))
+        sample.run = run_reference
+        sample["display_name"] = sample_name
+        sample_exists = False
+        for i in range(len(samples)):
+            if samples[i]["name"] == sample_name:
+                sample_exists = True
+                sample = samples[i]
+        paired_reads = Category(value={
+            "name": "paired_reads",
+            "component": {"id": component["_id"], "name": component["name"]},
+            "summary": {
+                    "data": [
+                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
+                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
+                    ]
+            }
+        })
+        sample.set_category(paired_reads)
+        print(metadata)
+        print(sample_name)
+        sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
+        sample_info = Category(value={
+            "name": "sample_info",
+            "component": {"id": component["_id"], "name": component["name"]},
+            "summary": sample_metadata
+        })
+        sample.set_category(sample_info)
 
-            sample.save()
-            if sample_exists is False:
-                samples.append(sample)
-        else:
-            metadata_new_row = pandas.DataFrame({'sample_name': [sample_name], 'haveReads': [True], 'haveMetaData': [False]})
-            metadata = metadata.append(metadata_new_row, ignore_index=True, sort=False)
+        sample.save()
+        if sample_exists is False:
+            samples.append(sample)
 
     run["type"] = run_type
     run["path"] = os.getcwd()
@@ -137,7 +136,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
 
 
 def replace_run_info_in_script(script: str, run: object) -> str:
-    positions_to_replace = re.findall(re.compile("\$run.[a-zA-Z]+"), script)
+    positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+"), script)
     for item in positions_to_replace:
         (key, value) = (item.split("."))
         script = script.replace(item, run[value])
@@ -145,7 +144,7 @@ def replace_run_info_in_script(script: str, run: object) -> str:
 
 
 def replace_sample_info_in_script(script: str, sample: object) -> str:
-    positions_to_replace = re.findall(re.compile("\$sample\.[\.\[\]_a-zA-Z0-9]+"), script)
+    positions_to_replace = re.findall(re.compile(r"\$sample\.[\.\[\]_a-zA-Z0-9]+"), script)
     for item in positions_to_replace:
         (item.split(".")[1:])
         level = sample.json
