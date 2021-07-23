@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='bifrost_run_launcher',
-    version='v2_2_3',
+    version='v2_2_6',
     description='Datahandling functions for bifrost (later to be API interface)',
     url='https://github.com/ssi-dk/bifrost_run_launcher',
     author="Kim Ng, Martin Basterrechea",
