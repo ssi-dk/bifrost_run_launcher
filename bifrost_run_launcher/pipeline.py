@@ -153,6 +153,8 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
                 (array_item, index) = value.split("[")
                 index = int(index[:-1])
                 level = level[array_item][index]
+            elif value.endswith("id"):
+                level = level[value]['$oid'] # {oid: <mongodb_id>}                
             else:
                 level = level[value]
         if(level is not None):
