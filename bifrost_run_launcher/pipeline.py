@@ -74,7 +74,8 @@ def get_file_pairs(metadata: pandas.DataFrame) -> List[Tuple[str,str]]:
 
 def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
-                   regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$"
+                   #regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$",
+                   componentsubset: str = "ccc,aaa,bbb"
                    ) -> Tuple[Run, List[Sample]]:
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
@@ -93,7 +94,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 sample = samples[i]
         paired_reads = Category(value={
             "name": "paired_reads",
-            "component": {"id": component["_id"], "name": component["name"]},
+            "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
             "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
@@ -113,7 +114,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         sample.save()
         if sample_exists is False:
             samples.append(sample)
-
+    run['componentsubset'] = componentsubset
     run["type"] = run_type
     run["path"] = os.getcwd()
     run["issues"] = {
@@ -203,10 +204,23 @@ def run_pipeline(args: object) -> None:
 
     if "_id" not in run:
         # Check here is to ensure run isn't in DB
-        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap)
+        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, componentsubset=args.componentsubset)
         
         print(f"Run {run['name']} and samples added to DB")
-
+    #print(samples, "b4 filtering")
+    if args.samplesubset != None:
+        sample_subset = set(args.samplesubset.split(","))
+        sample_inds_to_keep = []
+        if len(samples) > 1:
+            sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
+            missentered_subset_samples = ",".join([str(i) for i in (sample_subset - sample_names_orig)])
+            if len(missentered_subset_samples) > 0:
+                print(f"{missentered_subset_samples} not present in run.")
+            for i,sample in enumerate(samples):
+                if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
+                    sample_inds_to_keep.append(i)
+        samples = [samples[i] for i in sample_inds_to_keep]
+    #print(samples, "after filtering")
     script = generate_run_script(
         run,
         samples,
