@@ -154,6 +154,8 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
                 (array_item, index) = value.split("[")
                 index = int(index[:-1])
                 level = level[array_item][index]
+            elif value.endswith("id"):
+                level = level[value]['$oid'] # {oid: <mongodb_id>}
             else:
                 level = level[value]
         if(level is not None):
@@ -205,7 +207,7 @@ def run_pipeline(args: object) -> None:
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, componentsubset=args.componentsubset)
         
         print(f"Run {run['name']} and samples added to DB")
-    #print(samples, "b4 filtering")
+
     if args.samplesubset != None:
         sample_subset = set(args.samplesubset.split(","))
         sample_inds_to_keep = []
@@ -218,7 +220,7 @@ def run_pipeline(args: object) -> None:
                 if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
                     sample_inds_to_keep.append(i)
         samples = [samples[i] for i in sample_inds_to_keep]
-    #print(samples, "after filtering")
+
     script = generate_run_script(
         run,
         samples,
