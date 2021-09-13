@@ -155,16 +155,16 @@ def parse_and_run(args: List[str]) -> None:
         help='For re-running a run'
     )
     parser.add_argument( # get a way to replace the info in per script in pipeline.py
-       '-co', '--componentsubset',
+       '-co', '--component_subset',
        default="bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_assemblatron_v2_2_16,bifrost_ssi_stamper_v2_2_11,bifrost_cge_mlst_v2_2_6__210314",
        #default="asdf",
-       help='Component subset to run on samples.'
+       help='Component subset to run on samples. Use a comma for separation'
     )
     parser.add_argument( # get a way to replace the info in per script in pipeline.py
-       '-s', '--samplesubset',
+       '-s', '--sample_subset',
        #default="bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_assemblatron_v2_2_16,bifrost_ssi_stamper_v2_2_11,bifrost_cge_mlst_v2_2_6__210314",
        default=None,
-       help='Sample subset to process, None will run all samples.'
+       help='Sample subset to process, None will run all samples. Use a comma for separation.'
     )
 
     try:
