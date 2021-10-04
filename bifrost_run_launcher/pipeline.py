@@ -47,7 +47,13 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        samples_no_index = df[df["sample_name"].isna()].index
+        samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
+        samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
+        idx_to_drop = samples_no_index.union(samples_no_files_index)
+        missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
+        print(f"samples {missing_files} missing files.")
+        df = df.drop(idx_to_drop)
+        #df = df.drop(samples_no_index)
         df = df.drop(samples_no_index)
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]
@@ -75,7 +81,7 @@ def get_file_pairs(metadata: pandas.DataFrame) -> List[Tuple[str,str]]:
 def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
                    #regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$",
-                   componentsubset: str = "ccc,aaa,bbb"
+                   component_subset: str = "ccc,aaa,bbb"
                    ) -> Tuple[Run, List[Sample]]:
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
@@ -114,7 +120,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         sample.save()
         if sample_exists is False:
             samples.append(sample)
-    run['componentsubset'] = componentsubset
+    run['component_subset'] = component_subset # this might just be for annotating in the db
     run["type"] = run_type
     run["path"] = os.getcwd()
     run["issues"] = {
@@ -137,7 +143,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
 
 
 def replace_run_info_in_script(script: str, run: object) -> str:
-    positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+"), script)
+    positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+_*[a-zA-Z]+"), script)
     for item in positions_to_replace:
         (key, value) = (item.split("."))
         script = script.replace(item, run[value])
@@ -204,12 +210,12 @@ def run_pipeline(args: object) -> None:
 
     if "_id" not in run:
         # Check here is to ensure run isn't in DB
-        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, componentsubset=args.componentsubset)
+        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")
 
-    if args.samplesubset != None:
-        sample_subset = set(args.samplesubset.split(","))
+    if args.sample_subset != None:
+        sample_subset = set(args.sample_subset.split(","))
         sample_inds_to_keep = []
         if len(samples) > 1:
             sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
