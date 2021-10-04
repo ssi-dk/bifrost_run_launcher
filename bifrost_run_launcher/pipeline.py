@@ -47,7 +47,13 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        samples_no_index = df[df["sample_name"].isna()].index
+        samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
+        samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
+        idx_to_drop = samples_no_index.union(samples_no_files_index)
+        missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
+        print(f"samples {missing_files} missing files.")
+        df = df.drop(idx_to_drop)
+        #df = df.drop(samples_no_index)
         df = df.drop(samples_no_index)
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]

@@ -74,8 +74,8 @@ class TestBifrostRunLauncher:
             "--reads_folder", f"{bifrost_config_and_data_path}/samples",
             "--run_name", "bifrost_test",
             "--run_type", "test",
-            "--componentsubset", "bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_cge_mlst_v2_2_6__210314",
-            "--samplesubset", "S1"
+            "--component_subset", "bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_cge_mlst_v2_2_6__210314",
+            "--sample_subset", "S1"
         ]
         launcher.main(args=test_args)
         #clear collection
