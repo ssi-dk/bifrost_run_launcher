@@ -54,7 +54,6 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         print(f"samples {missing_files} missing files.")
         df = df.drop(idx_to_drop)
         #df = df.drop(samples_no_index)
-        df = df.drop(samples_no_index)
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]
         df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
@@ -88,6 +87,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     sample_dict, unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     run_reference = run.to_reference()
     for sample_name in sample_dict:
+        print(sample_name)
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
         sample = Sample(name=run.sample_name_generator(sample_name))
@@ -109,12 +109,16 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             }
         })
         sample.set_category(paired_reads)
-        sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
+        #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
+        sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0]
+        sample_metadata['filenames'] = list(sample_metadata['filenames']) # was a tuple before
+        #print([sample_metadata[i]==sample_metadata2[i] for i in sample_metadata.keys()])
         sample_info = Category(value={
             "name": "sample_info",
             "component": {"id": component["_id"], "name": component["name"]},
             "summary": sample_metadata
         })
+        print(sample_info)
         sample.set_category(sample_info)
 
         sample.save()
