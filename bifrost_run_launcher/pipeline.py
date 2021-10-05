@@ -87,7 +87,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     sample_dict, unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     run_reference = run.to_reference()
     for sample_name in sample_dict:
-        print(sample_name)
+        #print(sample_name)
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
         sample = Sample(name=run.sample_name_generator(sample_name))
