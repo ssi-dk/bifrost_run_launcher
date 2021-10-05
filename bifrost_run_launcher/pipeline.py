@@ -118,7 +118,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             "component": {"id": component["_id"], "name": component["name"]},
             "summary": sample_metadata
         })
-        print(sample_info)
+        #print(sample_info)
         sample.set_category(sample_info)
 
         sample.save()
