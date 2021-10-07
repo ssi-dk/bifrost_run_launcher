@@ -110,15 +110,13 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         })
         sample.set_category(paired_reads)
         #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
-        sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0]
-        sample_metadata['filenames'] = list(sample_metadata['filenames']) # was a tuple before
-        #print([sample_metadata[i]==sample_metadata2[i] for i in sample_metadata.keys()])
+        sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
+        sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
         sample_info = Category(value={
             "name": "sample_info",
             "component": {"id": component["_id"], "name": component["name"]},
             "summary": sample_metadata
         })
-        #print(sample_info)
         sample.set_category(sample_info)
 
         sample.save()
@@ -203,7 +201,8 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
-    if "_id" in run_reference:
+
+    if "_id" in run_reference.json:
         run: Run = Run.load(run_reference)
     else:
         run: Run = Run(name=args.run_name)
@@ -211,25 +210,25 @@ def run_pipeline(args: object) -> None:
     samples: List[Sample] = []
     for sample_reference in run.samples:
         samples.append(Sample.load(sample_reference))
-
-    if "_id" not in run:
+    if "_id" not in run.json:
         # Check here is to ensure run isn't in DB
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")
-
-    if args.sample_subset != None:
-        sample_subset = set(args.sample_subset.split(","))
-        sample_inds_to_keep = []
-        if len(samples) > 1:
-            sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
-            missentered_subset_samples = ",".join([str(i) for i in (sample_subset - sample_names_orig)])
-            if len(missentered_subset_samples) > 0:
-                print(f"{missentered_subset_samples} not present in run.")
-            for i,sample in enumerate(samples):
-                if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
-                    sample_inds_to_keep.append(i)
-        samples = [samples[i] for i in sample_inds_to_keep]
+    else:
+        print(f"Reprocessing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
+        if args.sample_subset != None:
+            sample_subset = set(args.sample_subset.split(","))
+            sample_inds_to_keep = []
+            if len(samples) >= 1:
+                sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
+                missentered_subset_samples = ",".join([str(i) for i in (sample_subset - sample_names_orig)])
+                if len(missentered_subset_samples) > 0:
+                    print(f"{missentered_subset_samples} not present in run.")
+                for i,sample in enumerate(samples):
+                    if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
+                        sample_inds_to_keep.append(i)
+            samples = [samples[i] for i in sample_inds_to_keep]
 
     script = generate_run_script(
         run,
