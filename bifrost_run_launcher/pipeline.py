@@ -15,6 +15,7 @@ from bifrostlib.datahandling import Sample
 from bifrostlib.datahandling import Category
 from bifrostlib.datahandling import Component
 import pprint
+import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
 
 os.umask(0o002)
@@ -201,20 +202,27 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
-
+    #print(args.run_id)
+    #print(run_reference.json)
     if "_id" in run_reference.json:
         run: Run = Run.load(run_reference)
     else:
         run: Run = Run(name=args.run_name)
-
+    #print(run)
     samples: List[Sample] = []
     for sample_reference in run.samples:
         samples.append(Sample.load(sample_reference))
-    if "_id" not in run.json:
-        # Check here is to ensure run isn't in DB
+    # check if the run has an id and whether it exists in the db
+    client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
+    db = client.get_database()
+    runs = db.runs
+    run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
+    if "_id" not in run: #and len(run_name_matches) < 1:
+        # Check here is to ensure run isn't in DB, might wanna check if name exists
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")
+    #elif "_id" in run.json:
     else:
         print(f"Reprocessing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
         if args.sample_subset != None:
@@ -229,6 +237,8 @@ def run_pipeline(args: object) -> None:
                     if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
                         sample_inds_to_keep.append(i)
             samples = [samples[i] for i in sample_inds_to_keep]
+    #else:
+        #return print(f"Run name already exists in runs with ids: {','.join(run_name_matches)}\nBifrost not initiated.")
 
     script = generate_run_script(
         run,
