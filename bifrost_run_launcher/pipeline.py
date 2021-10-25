@@ -202,13 +202,13 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
-    #print(args.run_id)
     print(run_reference.json, "run reference json")
     if "_id" in run_reference.json:
         run: Run = Run.load(run_reference)
     else:
         run: Run = Run(name=args.run_name)
-    #print(run.json, "run json")
+    if run == None: # mistyped id
+        raise ValueError("_id not in db.")
     samples: List[Sample] = []
     for sample_reference in run.samples:
         samples.append(Sample.load(sample_reference))
