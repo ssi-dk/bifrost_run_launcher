@@ -22,7 +22,7 @@ def test_connection():
     assert "TEST" in os.environ['BIFROST_DB_KEY'].upper()  # A very basic piece of protection ensuring the word test is in the DB
 
 class TestBifrostRunLauncher:
-    component_name = "run_launcher__v2_2_6"
+    component_name = "run_launcher__v2_2_7"
     test_dir = "/bifrost/test_data/output/test__run_launcher/"
     current_dir = os.getcwd()
     json_entries = [{"_id": {"$oid": "000000000000000000000001"}, "name": "test_component1"}]
@@ -73,14 +73,16 @@ class TestBifrostRunLauncher:
             "--run_metadata", f"{bifrost_config_and_data_path}/run_metadata.tsv",
             "--reads_folder", f"{bifrost_config_and_data_path}/samples",
             "--run_name", "bifrost_test",
-            "--run_type", "test"
+            "--run_type", "test",
+            "--component_subset", "bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_cge_mlst_v2_2_6__210314",
+            "--sample_subset", "S1"
         ]
         launcher.main(args=test_args)
         #clear collection
         assert os.path.isfile(f"{self.test_dir}/{self.component_name}/run_script.sh")
         assert os.path.isfile(f"{self.test_dir}/{self.component_name}/run.yaml")
         assert os.path.isfile(f"{self.test_dir}/{self.component_name}/samples.yaml")
-        shutil.rmtree(self.test_dir)
-        assert not os.path.isdir(f"{self.test_dir}/{self.component_name}")
+        #shutil.rmtree(self.test_dir)
+        #assert not os.path.isdir(f"{self.test_dir}/{self.component_name}")
 
 

@@ -15,6 +15,7 @@ from bifrostlib.datahandling import Sample
 from bifrostlib.datahandling import Category
 from bifrostlib.datahandling import Component
 import pprint
+import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
 
 os.umask(0o002)
@@ -47,8 +48,13 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        samples_no_index = df[df["sample_name"].isna()].index
-        df = df.drop(samples_no_index)
+        samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
+        samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
+        idx_to_drop = samples_no_index.union(samples_no_files_index)
+        missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
+        print(f"samples {missing_files} missing files.")
+        df = df.drop(idx_to_drop)
+        #df = df.drop(samples_no_index)
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]
         df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
@@ -74,13 +80,15 @@ def get_file_pairs(metadata: pandas.DataFrame) -> List[Tuple[str,str]]:
 
 def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
-                   regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$"
+                   #regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$",
+                   component_subset: str = "ccc,aaa,bbb"
                    ) -> Tuple[Run, List[Sample]]:
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
     sample_dict, unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     run_reference = run.to_reference()
     for sample_name in sample_dict:
+        #print(sample_name)
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
         sample = Sample(name=run.sample_name_generator(sample_name))
@@ -93,7 +101,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 sample = samples[i]
         paired_reads = Category(value={
             "name": "paired_reads",
-            "component": {"id": component["_id"], "name": component["name"]},
+            "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
             "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
@@ -102,7 +110,9 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             }
         })
         sample.set_category(paired_reads)
-        sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
+        #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
+        sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
+        sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
         sample_info = Category(value={
             "name": "sample_info",
             "component": {"id": component["_id"], "name": component["name"]},
@@ -113,7 +123,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         sample.save()
         if sample_exists is False:
             samples.append(sample)
-
+    run['component_subset'] = component_subset # this might just be for annotating in the db
     run["type"] = run_type
     run["path"] = os.getcwd()
     run["issues"] = {
@@ -136,7 +146,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
 
 
 def replace_run_info_in_script(script: str, run: object) -> str:
-    positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+"), script)
+    positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+_*[a-zA-Z]+"), script)
     for item in positions_to_replace:
         (key, value) = (item.split("."))
         script = script.replace(item, run[value])
@@ -153,6 +163,8 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
                 (array_item, index) = value.split("[")
                 index = int(index[:-1])
                 level = level[array_item][index]
+            elif value.endswith("id"):
+                level = level[value]['$oid'] # {oid: <mongodb_id>}
             else:
                 level = level[value]
         if(level is not None):
@@ -190,20 +202,43 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
-    if "_id" in run_reference:
+    print(run_reference.json, "run reference json")
+    if "_id" in run_reference.json:
         run: Run = Run.load(run_reference)
     else:
         run: Run = Run(name=args.run_name)
-
+    if run == None: # mistyped id
+        raise ValueError("_id not in db.")
     samples: List[Sample] = []
     for sample_reference in run.samples:
         samples.append(Sample.load(sample_reference))
-
-    if "_id" not in run:
-        # Check here is to ensure run isn't in DB
-        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap)
+    # check if the run has an id and whether it exists in the db
+    client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
+    db = client.get_database()
+    runs = db.runs
+    run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
+    if "_id" not in run.json: #and len(run_name_matches) < 1:
+        # Check here is to ensure run isn't in DB, might wanna check if name exists
+        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")
+    #elif "_id" in run.json:
+    else:
+        print(f"Reprocessing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
+        if args.sample_subset != None:
+            sample_subset = set(args.sample_subset.split(","))
+            sample_inds_to_keep = []
+            if len(samples) >= 1:
+                sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
+                missentered_subset_samples = ",".join([str(i) for i in (sample_subset - sample_names_orig)])
+                if len(missentered_subset_samples) > 0:
+                    print(f"{missentered_subset_samples} not present in run.")
+                for i,sample in enumerate(samples):
+                    if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
+                        sample_inds_to_keep.append(i)
+            samples = [samples[i] for i in sample_inds_to_keep]
+    #else:
+        #return print(f"Run name already exists in runs with ids: {','.join(run_name_matches)}\nBifrost not initiated.")
 
     script = generate_run_script(
         run,
