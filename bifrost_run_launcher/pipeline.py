@@ -52,7 +52,8 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
         idx_to_drop = samples_no_index.union(samples_no_files_index)
         missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
-        print(f"samples {missing_files} missing files.")
+        if len(missing_files) > 0:
+            print(f"samples {missing_files} missing files.")
         df = df.drop(idx_to_drop)
         #df = df.drop(samples_no_index)
         df["sample_name"] = df["sample_name"].astype('str')
@@ -200,23 +201,28 @@ def run_pipeline(args: object) -> None:
     if not os.path.isdir(args.outdir):
         os.makedirs(args.outdir)
     os.chdir(args.outdir)
-
-    run_reference = RunReference(_id = args.run_id, name = args.run_name)
+    client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
+    db = client.get_database()
+    runs = db.runs
+    run_id_for_name_matches = [str(i["_id"]) for i in runs.find({"name":args.run_name})]
+    if (len(run_id_for_name_matches) > 0) and args.run_id == None:
+        run_id_for_reference = run_id_for_name_matches[0] # we have no way of ascertaining which is the correct run if multiple are entered into the, grep id from first entry
+    else:
+        run_id_for_reference = args.run_id
+    run_reference = RunReference(_id = run_id_for_reference, name = args.run_name)
     print(run_reference.json, "run reference json")
     if "_id" in run_reference.json:
         run: Run = Run.load(run_reference)
     else:
         run: Run = Run(name=args.run_name)
+    print(run.json, 'run json')
     if run == None: # mistyped id
         raise ValueError("_id not in db.")
     samples: List[Sample] = []
     for sample_reference in run.samples:
         samples.append(Sample.load(sample_reference))
     # check if the run has an id and whether it exists in the db
-    client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
-    db = client.get_database()
-    runs = db.runs
-    run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
+
     if "_id" not in run.json: #and len(run_name_matches) < 1:
         # Check here is to ensure run isn't in DB, might wanna check if name exists
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
@@ -228,7 +234,7 @@ def run_pipeline(args: object) -> None:
         if args.sample_subset != None:
             sample_subset = set(args.sample_subset.split(","))
             sample_inds_to_keep = []
-            if len(samples) >= 1:
+            if len(samples) > 0:
                 sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
                 missentered_subset_samples = ",".join([str(i) for i in (sample_subset - sample_names_orig)])
                 if len(missentered_subset_samples) > 0:
