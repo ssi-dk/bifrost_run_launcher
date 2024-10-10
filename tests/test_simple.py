@@ -60,7 +60,7 @@ def clean_dir(request):
     shutil.rmtree(newpath)
 
 class TestBifrostRunLauncher:
-    component_name = "run_launcher__v2.2.7"
+    component_name = "run_launcher__v2.3.0"
 
     @pytest.fixture
     def sample_args(self, clean_dir):

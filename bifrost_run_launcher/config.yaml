@@ -2,10 +2,10 @@
 #   Values in <value> are modified by CI/CD automation. Please see github/workflows for more info
 #-Basic info----------------------------------------------------------------------------------------
 display_name: run_launcher
-name: run_launcher__v2.2.7
+name: run_launcher__v2.3.0
 version:
   schema: ["v2_1_0"]
-  code: v2.2.7
+  code: v2.3.0
 note: >
   Currently run components aren't set up properly (probably want to call them collection components)
   values here are not being used properly. I think the idea for run components is that you don't 
