@@ -58,12 +58,13 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]
         df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
-        df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9-_]"), "_")
+        df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9-_]"), "_", regex=True)
         df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
         df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
         df["haveReads"] = False
         df["haveMetaData"] = True
         df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/')))
+        df = df.map(lambda x: None if pandas.isna(x) else x)
         return df
     except:
         with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
