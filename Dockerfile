@@ -7,7 +7,7 @@ ARG BIFROST_COMPONENT_NAME="bifrost_run_launcher"
 #---------------------------------------------------------------------------------------------------
 # Base for dev environement
 #---------------------------------------------------------------------------------------------------
-FROM continuumio/miniconda3:4.8.2 as build_dev
+FROM continuumio/miniconda3:22.11.1 as build_dev
 ONBUILD ARG BIFROST_COMPONENT_NAME
 ONBUILD COPY /components/${BIFROST_COMPONENT_NAME} /bifrost/components/${BIFROST_COMPONENT_NAME}
 ONBUILD COPY /lib/bifrostlib /bifrost/lib/bifrostlib
@@ -20,7 +20,7 @@ ONBUILD RUN \
 #---------------------------------------------------------------------------------------------------
 # Base for production environment
 #---------------------------------------------------------------------------------------------------
-FROM continuumio/miniconda3:4.8.2 as build_prod
+FROM continuumio/miniconda3:22.11.1 as build_prod
 ONBUILD ARG BIFROST_COMPONENT_NAME
 ONBUILD WORKDIR /bifrost/components/${BIFROST_COMPONENT_NAME}
 ONBUILD COPY ./ ./
@@ -32,7 +32,7 @@ ONBUILD RUN \
 # Base for test environment (prod with tests)
 #---------------------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------
-FROM continuumio/miniconda3:4.8.2 as build_test
+FROM continuumio/miniconda3:22.11.1 as build_test
 ONBUILD ARG BIFROST_COMPONENT_NAME
 ONBUILD WORKDIR /bifrost/components/${BIFROST_COMPONENT_NAME}
 ONBUILD COPY ./ ./
