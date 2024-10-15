@@ -74,7 +74,6 @@ def parse_and_run(args: List[str]) -> None:
         f"-Environmental Variables/Defaults---------------\n"
         f"BIFROST_CONFIG_DIR: {os.environ.get('BIFROST_CONFIG_DIR','.')}\n"
         f"BIFROST_RUN_DIR: {os.environ.get('BIFROST_RUN_DIR','.')}\n"
-        f"BIFROST_DB_KEY: {os.environ.get('BIFROST_DB_KEY')}\n"
         f"------------------------------------------------\n"
         f"\n"
     )
@@ -152,6 +151,11 @@ def parse_and_run(args: List[str]) -> None:
     parser.add_argument(
         '-id', '--run_id',
         default=None,
+        help='For re-running a run'
+    )
+    parser.add_argument(
+        '-rerun', '--re_run',
+        action="store_true",
         help='For re-running a run'
     )
     parser.add_argument( # get a way to replace the info in per script in pipeline.py

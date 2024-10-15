@@ -204,7 +204,7 @@ def run_pipeline(args: object) -> None:
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
     print(run_reference.json, "run reference json")
-    if "_id" in run_reference.json:
+    if args.re_run:
         run: Run = Run.load(run_reference)
     else:
         run: Run = Run(name=args.run_name)
