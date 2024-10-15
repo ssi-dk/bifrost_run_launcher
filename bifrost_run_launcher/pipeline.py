@@ -206,10 +206,10 @@ def run_pipeline(args: object) -> None:
     print(run_reference.json, "run reference json")
     if args.re_run:
         run: Run = Run.load(run_reference)
-        if run is None and _id is not None: # mistyped id
-            raise ValueError("_id not in db.")
+        if run is None and args.run_id is not None: # mistyped id
+            raise ValueError(f"_id={args.run_id} not in db.")
         elif run is None:
-            run: Run = Run(name=args.run_name)    
+            run: Run = Run(name=args.run_name)
     else:
         run: Run = Run(name=args.run_name)
     samples: List[Sample] = []
@@ -220,12 +220,12 @@ def run_pipeline(args: object) -> None:
     db = client.get_database()
     runs = db.runs
     run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
-    if "_id" not in run.json or args.sample_subset is None: #and len(run_name_matches) < 1:
-        # Check here is to ensure run isn't in DB, might wanna check if name exists
+    if "_id" not in run.json or args.sample_subset is None:
+        if args.debug:
+            print(f"{run = }\n{samples = }")
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")
-    #elif "_id" in run.json:
     else:
         print(f"Reprocessing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
         if args.sample_subset != None:
@@ -240,8 +240,6 @@ def run_pipeline(args: object) -> None:
                     if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
                         sample_inds_to_keep.append(i)
             samples = [samples[i] for i in sample_inds_to_keep]
-    #else:
-        #return print(f"Run name already exists in runs with ids: {','.join(run_name_matches)}\nBifrost not initiated.")
 
     if args.debug:
         print("run")
