@@ -206,10 +206,12 @@ def run_pipeline(args: object) -> None:
     print(run_reference.json, "run reference json")
     if args.re_run:
         run: Run = Run.load(run_reference)
+        if run is None and _id is not None: # mistyped id
+            raise ValueError("_id not in db.")
+        elif run is None:
+            run: Run = Run(name=args.run_name)    
     else:
         run: Run = Run(name=args.run_name)
-    if run == None: # mistyped id
-        raise ValueError("_id not in db.")
     samples: List[Sample] = []
     for sample_reference in run.samples:
         samples.append(Sample.load(sample_reference))
@@ -240,6 +242,12 @@ def run_pipeline(args: object) -> None:
             samples = [samples[i] for i in sample_inds_to_keep]
     #else:
         #return print(f"Run name already exists in runs with ids: {','.join(run_name_matches)}\nBifrost not initiated.")
+
+    if args.debug:
+        print("run")
+        print(run)
+        print("samples")
+        print(samples)
 
     script = generate_run_script(
         run,
