@@ -220,7 +220,7 @@ def run_pipeline(args: object) -> None:
     db = client.get_database()
     runs = db.runs
     run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
-    if "_id" not in run.json: #and len(run_name_matches) < 1:
+    if "_id" not in run.json or args.sample_subset is None: #and len(run_name_matches) < 1:
         # Check here is to ensure run isn't in DB, might wanna check if name exists
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
