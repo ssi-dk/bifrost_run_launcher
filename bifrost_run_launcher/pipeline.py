@@ -120,8 +120,10 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             "summary": sample_metadata
         })
         sample.set_category(sample_info)
-
-        sample.save()
+        try:
+            sample.save()
+        except DuplicateKeyError:
+            print(f"Sample {sample_name} exists - reusing")
         if sample_exists is False:
             samples.append(sample)
     run['component_subset'] = component_subset # this might just be for annotating in the db
