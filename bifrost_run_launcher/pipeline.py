@@ -17,6 +17,8 @@ from bifrostlib.datahandling import Component
 import pprint
 import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
+from pymongo import errors.DuplicateKeyError as DuplicateKeyError
+
 
 os.umask(0o002)
 
