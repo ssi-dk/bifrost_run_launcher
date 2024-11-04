@@ -213,8 +213,11 @@ def run_pipeline(args: object) -> None:
     else:
         run: Run = Run(name=args.run_name)
     samples: List[Sample] = []
+    # Add existing samples from run.samples if they exist
     for sample_reference in run.samples:
-        samples.append(Sample.load(sample_reference))
+        sample = Sample.load(sample_reference)
+        if sample is not None:
+            samples.append(sample)
     # check if the run has an id and whether it exists in the db
     client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
     db = client.get_database()
