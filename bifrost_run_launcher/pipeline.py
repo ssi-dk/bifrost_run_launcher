@@ -203,7 +203,7 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
-    print(run_reference.json, "run reference json")
+    print(f"{run_reference.json = }")
     if args.re_run:
         run: Run = Run.load(run_reference)
         if run is None and args.run_id is not None: # mistyped id
