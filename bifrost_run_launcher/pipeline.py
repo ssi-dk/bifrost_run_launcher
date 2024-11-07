@@ -126,7 +126,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             sample.save()
         except DuplicateKeyError:
             print(f"Sample {sample_name} exists - reusing")
-        if sample_exists is False:
+        if sample_exists == False:
             samples.append(sample)
     run['component_subset'] = component_subset # this might just be for annotating in the db
     run["type"] = run_type
