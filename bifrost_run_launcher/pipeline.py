@@ -90,8 +90,8 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     file_names_in_metadata = get_file_pairs(metadata)
     sample_dict, unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     run_reference = run.to_reference()
+    sample_list: List(Sample) = []
     for sample_name in sample_dict:
-        #print(sample_name)
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
         sample = Sample(name=run.sample_name_generator(sample_name))
@@ -100,6 +100,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         sample_exists = False
         for i in range(len(samples)):
             if samples[i]["name"] == sample_name:
+                print(f"Sample {sample_name} exists")
                 sample_exists = True
                 sample = samples[i]
         paired_reads = Category(value={
@@ -126,8 +127,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             sample.save()
         except DuplicateKeyError:
             print(f"Sample {sample_name} exists - reusing")
-        if sample_exists == False:
-            samples.append(sample)
+        sample_list.append(sample)
     run['component_subset'] = component_subset # this might just be for annotating in the db
     run["type"] = run_type
     run["path"] = os.getcwd()
@@ -138,16 +138,16 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
         "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
     }
-    run.samples = [i.to_reference() for i in samples]
+    run.samples = [i.to_reference() for i in sample_list]
     run.save()
 
     with open("run.yaml", "w") as fh:
         fh.write(pprint.pformat(run.json))
     with open("samples.yaml", "w") as fh:
-        for sample in samples:
+        for sample in sample_list:
             fh.write(pprint.pformat(sample.json))
 
-    return (run, samples)
+    return (run, sample_list)
 
 
 def replace_run_info_in_script(script: str, run: object) -> str:
