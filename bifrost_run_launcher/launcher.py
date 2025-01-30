@@ -16,7 +16,7 @@ from typing import List, Dict
 
 
 global COMPONENT
-
+#print("COMPONENT",COMPONENT)
 
 def initialize():
     with open(os.path.join(os.path.dirname(__file__), 'config.yaml')) as fh:
@@ -109,15 +109,33 @@ def parse_and_run(args: List[str]) -> None:
         type=types.file,
     )
     parser.add_argument(
+        '-pre_asm', '--pre_asm_script',
+        help='Pre script for assembly runs',
+        #default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_pre_asm']),
+        type=types.file
+    )
+    parser.add_argument(
         '-per', '--per_sample_script',
         help='Per sample script template run on each sample',
         default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_per']),
         type=types.file
     )
     parser.add_argument(
+        '-per_asm', '--per_asm_sample_script',
+        help='Per sample script for assembly runs',
+        #default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_per_asm']),
+        type=types.file
+    )
+    parser.add_argument(
         '-post', '--post_script',
         help='Post script template run after sample script',
         default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_post']),
+        type=types.file
+    )
+    parser.add_argument(
+        '-post_asm', '--post_asm_script',
+        help='Post script for assembly runs',
+        #default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_post_asm']),
         type=types.file
     )
     parser.add_argument(

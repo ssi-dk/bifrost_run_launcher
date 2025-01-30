@@ -40,6 +40,9 @@ options:
   default_pre: "pre.sh"
   default_per: "per_sample.sh"
   default_post: "post.sh"
+  default_pre_asm: "pre_asm.sh"
+  default_per_asm: "per_asm_sample.sh"
+  default_post_asm: "post_asm.sh"
   default_meta: "run_metadata.tsv"
   default_reads: "samples"
   default_colmap: "rename.json"
@@ -62,6 +65,9 @@ requirements:
 #    -"pre_script.sh"
 #    -"per_sample_script.sh"
 #    -"post_script.sh"
+#    -"pre_asm_script.sh"
+#    -"per_asm_sample_script.sh"
+#    -"post_asm_script.sh"
 #---------------------------------------------------------------------------------------------------
 
 #-DB Value changes (excluding component output)-----------------------------------------------------
