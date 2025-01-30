@@ -6,7 +6,7 @@ import re
 import os
 from sys import stderr
 import traceback
-import pandas
+import pandas as pd
 import json
 import sys
 from bifrostlib.datahandling import RunReference
@@ -18,7 +18,7 @@ import pprint
 import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
 from pymongo.errors import DuplicateKeyError
-
+import argparse
 
 os.umask(0o002)
 
@@ -31,6 +31,7 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
         # Downstream it is assumed that there are exactly two sequence files, 
         # so we test and complain here if that is not the case.
         if len(sample_files) != 2:
+
             print("Sample files:\n"+"\n".join(sample_files),file=sys.stderr)
             raise ValueError("Number of sequence files is not two")
         if all_files.issuperset(sample_files):
@@ -41,35 +42,106 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
     unused_files.discard(run_metadata_filename)
     return (sample_dict, list(unused_files))
 
+def parse_directory_asm(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pd.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
+
+    all_files: Set[str] = set(os.listdir(directory))
+    unused_files: Set[str] = all_files
+    sample_dict = {}
+    bifrost_mode = None #Either SEQ or ASM
+
+    #define extensions for what is assumed to be unique to sequence reads and assemblies to differentiate in metadata
+    seq_reads_ext = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
+    asm_ext = {".fa", ".fasta", ".fa.gz", ".fasta.gz"}
+
+    for sample_files in file_name_list:
+        file_extensions = {os.path.splitext(f)[1].lower() for f in sample_files} # define as a set {} for issubset function below
+        
+        # checking if sequence reads
+        if file_extensions.issubset(seq_reads_ext):
+            # For paired-end sequence read files - ensure exactly two files exist
+            if len(sample_files) != 2:
+                raise ValueError(f"Error: Sample {sample_files} must have exactly two read files.")
+            bifrost_mode = "SEQ"
+
+        # checking if it is assembly
+        elif file_extensions.issubset(asm_ext):
+            # Assembly files - ensure exactly one file exists
+            if len(sample_files) != 1:
+                raise ValueError(f"Error: Sample {sample_files} must have exactly one assembly file.")
+            bifrost_mode = "ASM"    
+                
+        if all_files.issuperset(sample_files):
+            unused_files.difference_update(sample_files)
+            sample_name = run_metadata.loc[lambda df: df["filenames"] == sample_files, "sample_name"]
+            for n in sample_name:
+                sample_dict[n] = list(sample_files)
+    
+    unused_files.discard(run_metadata_filename)
+    
+    if bifrost_mode is None:
+        raise ValueError("Unable to create run_script for pipeline initiation due to no valid sequencing or assembly files detected.")
+
+    return (sample_dict,bifrost_mode,list(unused_files))
 
 def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> pandas.DataFrame:
+    """
+    Reads and ensure correct format for metadata based on input file and returns pandas dataframe for processed file
+    """
+
     df = None
+
     try:
-        df = pandas.read_table(run_metadata)
-        if rename_column_file is not None:
+        df = pd.read_table(run_metadata)
+
+        # rename columns based on json column input ensuring identical column names
+        if rename_column_file is not None: 
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+        # clean up columns and data samples
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')] #remove unnamed columns
         samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
         samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
         idx_to_drop = samples_no_index.union(samples_no_files_index)
         missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
         print(f"samples {missing_files} missing files.")
         df = df.drop(idx_to_drop)
-        #df = df.drop(samples_no_index)
+
+        # clean up sample names
         df["sample_name"] = df["sample_name"].astype('str')
         df["temp_sample_name"] = df["sample_name"]
         df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
         df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9-_]"), "_", regex=True)
+        
+        # check for modified sample names
         df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
         df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
-        df["haveReads"] = False
-        df["haveMetaData"] = True
+
+        # detect sequencing vs assembly 
+        df["haveData"] = False # true when files are confirmed
+
+        #checks if there is assembly or read data to remove samples without anything
+        df["run_type"] = df["filenames"].apply(
+            lambda x: "ASM" if any(f.endswith((".fa", ".fasta", ".fa.gz", ".fasta.gz")) for f in x)
+            else "SEQ" if any(f.endswith((".fq", ".fastq", ".fq.gz", ".fastq.gz")) for f in x)
+            else None
+        )
+        df["hasData"] = df["run_type"].notna()
+        df = df[df["hasData"] == True] 
+
+
+
+        df["haveMetaData"] = True # assume all have metadata
+
+        #create filenames to tuples - to ensure structure for huge data collection?
         df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/')))
+
         df = df.map(lambda x: None if pandas.isna(x) else x)
+
         return df
+
     except:
-        with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
             print(df, file=sys.stderr)
             print(traceback.format_exc(), file=sys.stderr)
             raise Exception("bad metadata and/or rename column file")
@@ -264,6 +336,8 @@ def run_pipeline(args: object) -> None:
         fh.write(script)
 
     print("Done, to run execute bash run_script.sh")
-
-# if __name__ == "__main__":
+ 
+#if __name__ == "__main__":
 #     parse_args(sys.argv[1:])
+#if __name__ == "__main__":
+#    main()
