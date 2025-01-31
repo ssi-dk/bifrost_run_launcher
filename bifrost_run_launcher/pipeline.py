@@ -23,21 +23,26 @@ import argparse
 os.umask(0o002)
 
 def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pd.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
-
+    print("parse_directory")
+    print(f"file name list is {file_name_list}")
+    #exit(1)
     all_files: Set[str] = set(os.listdir(directory))
+    print(f"all files are : {all_files}")
     unused_files: Set[str] = all_files
     sample_dict = {}
     bifrost_mode = None #Either SEQ or ASM
-
+    
     #define extensions for what is assumed to be unique to sequence reads and assemblies to differentiate in metadata
     seq_reads_ext = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
     asm_ext = {".fa", ".fasta", ".fa.gz", ".fasta.gz"}
 
     for sample_files in file_name_list:
+        print(f"sample files: {sample_files}")
         file_extensions = {os.path.splitext(f)[1].lower() for f in sample_files} # define as a set {} for issubset function below
         
         # checking if sequence reads
         if file_extensions.issubset(seq_reads_ext):
+            print("inside sequence reads module")
             # For paired-end sequence read files - ensure exactly two files exist
             if len(sample_files) != 2:
                 raise ValueError(f"Error: Sample {sample_files} must have exactly two read files.")
@@ -45,11 +50,14 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
 
         # checking if it is assembly
         elif file_extensions.issubset(asm_ext):
+            print("inside assembly module")
             # Assembly files - ensure exactly one file exists
             if len(sample_files) != 1:
                 raise ValueError(f"Error: Sample {sample_files} must have exactly one assembly file.")
             bifrost_mode = "ASM"    
-                
+        
+        print(f"the bifrost launching mode is {bifrost_mode}")
+
         if all_files.issuperset(sample_files):
             unused_files.difference_update(sample_files)
             sample_name = run_metadata.loc[lambda df: df["filenames"] == sample_files, "sample_name"]
@@ -64,37 +72,107 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
     return (sample_dict,bifrost_mode,list(unused_files))
 
 def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> pd.DataFrame:
-    """
-    Reads and ensure correct format for metadata based on input file and returns pandas dataframe for processed file
-    """
-
     df = None
 
     try:
-        #df = pd.read_csv(run_metadata, sep="\t")  # If space-separated, change to `delim_whitespace=True`
-        df = pd.read_csv(run_metadata, delim_whitespace=True, header=0)
-        df.columns = ["sample_name", "species", "institution", "lab", "project", "date", "full_id", "filenames", "read_type", "purpose"]
+        df = pd.read_table(run_metadata)
+        print("\n[DEBUG] Raw metadata before processing:")
+        print(df.to_string()) 
+
+        # Rename columns if a mapping file is provided
+        if rename_column_file:
+            with open(rename_column_file, "r") as rename_file:
+                df = df.rename(columns=json.load(rename_file))
+
+        # Drop unnamed columns (e.g., empty trailing columns from Excel)
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        print("\n[DEBUG] after unamed columns:")
+        print(df.to_string())
+    
+        # Drop rows with missing `sample_name` or `filenames`
+        df = df.dropna(subset=["sample_name", "filenames"])
+
+        print("\n[DEBUG] after dropped names:")
+        print(df.to_string())
+
+        # Save original `sample_name` before cleaning
+        df["temp_sample_name"] = df["sample_name"]
+
+        # Clean sample names
+        df["sample_name"] = df["sample_name"].astype(str).str.strip()
+        df["sample_name"] = df["sample_name"].str.replace(r"[^a-zA-Z0-9-_]", "_", regex=True)
+        print("\n[DEBUG] after clean names:")
+        print(df.to_string())
+
+        # Track changed and duplicated sample names
+        df["changed_sample_names"] = df["sample_name"] != df["temp_sample_name"]
+        df["duplicated_sample_names"] = df["sample_name"].duplicated(keep="first")
+        print("\n[DEBUG] after duplicated names:")
+        print(df.to_string())
+
+        # Convert filenames from a string to a tuple
+        df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/')))
+        print("\n[DEBUG] after tuple names:")
+        print(df.to_string())
+
+        # Initialize tracking columns
+        df["haveReads"] = False
+        df["haveMetaData"] = True
+        print("\n[DEBUG] final:")
+        print(df.to_string())
+        
+        exit(1)
+        return df
+    
+    except Exception as e:
+        print(traceback.format_exc())
+        raise Exception("Error processing metadata file") from e
+
+
+def format_metadata_v2(run_metadata: TextIO, rename_column_file: TextIO = None) -> pd.DataFrame:
+    print("inside format_metadata")
+    """
+    Reads and ensure correct format for metadata based on input file and returns pandas dataframe for processed file
+    """
+    #exit(1)
+    df = None
+
+    df = pd.read_table(run_metadata) 
+    
+    print(f"reading metadata {run_metadata}")
+    
+    print("\n[DEBUG] Metadata file loaded successfully!")
+    print(df.head())  # Show first 5 rows
+    print("\n[DEBUG] Column names detected:", df.columns.tolist())
+
+    if rename_column_file is not None:
+        with open(rename_column_file, "r") as rename_file:
+            df = df.rename(columns=json.load(rename_file))
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
+    samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
+    idx_to_drop = samples_no_index.union(samples_no_files_index)
+    missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
+    print(f"samples {missing_files} missing files.")
+    
+    print(df.head())  # Show first 5 rows
+
+    exit(1)
+
+    try:
+        df = pd.read_table(run_metadata)  # If space-separated, change to `delim_whitespace=True`
+        #df = pd.read_csv(run_metadata, delim_whitespace=True, header=0)
+        #df.columns = ["sample_name", "species", "institution", "lab", "project", "date", "full_id", "filenames", "read_type", "purpose"]
         
         print("\n[DEBUG] Metadata file loaded successfully!")
         print(df.head())  # Show first 5 rows
         print("\n[DEBUG] Column names detected:", df.columns.tolist())
-
-        #df = pd.read_table(run_metadata)
-
-        if "sample_name" not in df.columns:
-            raise KeyError(f"Metadata file does not contain 'sample_name'. Columns found: {df.columns.tolist()}")
-            
-        exit(1)
+           
         # rename columns based on json column input ensuring identical column names
-        #if rename_column_file is not None: 
-        #    with open(rename_column_file, "r") as rename_file:
-        #        df = df.rename(columns=json.load(rename_file))
+        if rename_column_file is not None: 
+            with open(rename_column_file, "r") as rename_file:
+                df = df.rename(columns=json.load(rename_file))
 
-        #expected_columns = ["sample_name", "species", "institution", "lab", "project", "date", "full_id", "filenames", "read_type", "purpose"]
-        #if len(df.columns) == len(expected_columns):  # If number of columns match expected
-        #    df.columns = expected_columns
-        #    print("\n[DEBUG] Columns renamed to:", df.columns.tolist())
-                                    
         # clean up columns and data samples
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')] #remove unnamed columns
         samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
@@ -149,9 +227,13 @@ def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
 
 def initialize_run(run: Run, samples: List[Sample], component: Component, 
                    input_folder: str, run_metadata: str, run_type: str, 
-                   rename_column_file: str = None) -> Tuple[Run, List[Sample]]:
+                   rename_column_file: str = None, component_subset: str = "ccc,aaa,bbb") -> Tuple[Run, List[Sample]]:
+    print("Inside initialize run")
     
+    #exit(1)
+    print(f"before metadata format {run_metadata} with column file {rename_column_file}")
     metadata = format_metadata(run_metadata, rename_column_file)
+    print("finished metadata")
     file_names_in_metadata = get_file_pairs(metadata)
 
     sample_dict,detected_bifrost_type,unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
@@ -278,6 +360,7 @@ def generate_run_script(run: Run, samples: Sample,
                         per_sample_script_location: str, per_asm_sample_script_location: str, 
                         post_script_location: str, post_asm_script_location: str) -> str:
  
+    #exit(1)
     script = ""
 
     if run["type"] == "SEQ":    
@@ -346,8 +429,10 @@ def run_pipeline(args: object) -> None:
         if args.debug:
             print(f"{run = }\n{samples = }")
         #run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
-        run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.ru\
-n_metadata_column_remap)
+        run, samples = initialize_run(run=run, samples=samples, component=args.component, 
+                                      input_folder=args.reads_folder, run_metadata=args.run_metadata, 
+                                      run_type=args.run_type, rename_column_file=args.run_metadata_column_remap,
+                                      component_subset=args.component_subset)
 
         print(f"Run {run['name']} and samples added to DB")
     else:

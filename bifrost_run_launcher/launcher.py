@@ -6,7 +6,14 @@ import argparse
 import os
 import sys
 import traceback
-from bifrost_run_launcher import pipeline
+
+
+# Get the directory where launcher.py is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+import pipeline
+#from bifrost_run_launcher import pipeline
+print(f"Using pipeline.py from: {pipeline.__file__}\n")
+
 from bifrostlib import datahandling
 from bifrostlib.datahandling import Component
 from bifrostlib.datahandling import ComponentReference
@@ -19,6 +26,8 @@ global COMPONENT
 #print("COMPONENT",COMPONENT)
 
 def initialize():
+
+
     with open(os.path.join(os.path.dirname(__file__), 'config.yaml')) as fh:
         config: Dict = yaml.load(fh, Loader=yaml.FullLoader)
 
