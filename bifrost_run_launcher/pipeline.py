@@ -41,13 +41,15 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
         #file_extensions = {os.path.splitext(f)[1].lower() for f in sample_files} # define as a set {} for issubset function below
         #print(f"file extensions are {file_extensions}")
         file_extensions = set()
-        for f in sample_files:
-            base, ext = os.path.splitext(f)  # Extract first extension
-            if ext == ".gz":  # Handle double extensions like .fastq.gz
-                base, ext = os.path.splitext(base)  # Extract real file type before .gz
-                file_extensions.add(ext.lower())  # Normalize to lowercase
-
-        #print(f"Extracted file extensions: {file_extensions}")
+        print(f"file extensions are {file_extensions}")
+        base, ext = os.path.splitext(sample_files[0])  # Extract first extension
+        print(f"base is {base} and ext {ext}")
+        if ext == ".gz":  # Handle double extensions like .fastq.gz
+            base, ext = os.path.splitext(base)  # Extract real file type before .gz
+            file_extensions.add(ext.lower())  # Normalize to lowercase
+        else:
+            file_extensions.add(ext.lower())
+        print(f"Extracted file extensions: {file_extensions}")
         
         # checking if sequence reads
         if file_extensions.issubset(seq_reads_ext):
@@ -148,7 +150,6 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
                    rename_column_file: str = None, component_subset: str = "ccc,aaa,bbb") -> Tuple[Run, List[Sample]]:
     print("Inside initialize run")
     
-    #exit(1)
     print(f"before metadata format {run_metadata} with column file {rename_column_file}")
     metadata = format_metadata(run_metadata, rename_column_file)
     print("finished metadata")
@@ -176,8 +177,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
                 print(f"Sample {sample_name} exists")
                 sample_exists = True
                 sample = samples[i]
-        
-        
+            
         if run_type == "SEQ":
             paired_reads = Category(value={
                 "name": "paired_reads",
@@ -192,7 +192,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
             print(paired_reads)
             sample.set_category(paired_reads)
         elif run_type == "ASM":
-            assembly_category = Category(value={
+            assembly = Category(value={
                 "name": "assembly",
                 "component": {"id": component["_id"], "name": component["name"]},
                 "summary": {
@@ -201,8 +201,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
                     ]
                 }
             })
-            sample.set_category(assembly_category)
-
+            sample.set_category(assembly)
 
         #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
         sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
@@ -224,18 +223,29 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
     run['component_subset'] = component_subset # this might just be for annotating in the db
     run["type"] = run_type
     run["path"] = os.getcwd()
+    print(f"THE RUN TYPE FOR ISSUES ARE {run_type}")
+    print(run["type"])
+
+    if run["type"] == "SEQ":
+        run["issues"] = {
+            "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
+            "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
+            "unused_files": unused_files,
+            "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
+            "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
+        }
+    elif run["type"] == "ASM":
+        run["issues"] = {
+            "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
+            "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
+            "unused_files": unused_files,
+            "samples_without_assembly": list(metadata[metadata['haveAsm'] == False]['sample_name']),
+            "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
+        }
     
-    run["issues"] = {
-        "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
-        "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
-        "unused_files": unused_files,
-        "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
-        "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
-    }
     run.samples = [i.to_reference() for i in sample_list]
     run.save()
-
-    
+   
     with open("run.yaml", "w") as fh:
         fh.write(pprint.pformat(run.json))
     with open("samples.yaml", "w") as fh:
@@ -273,52 +283,26 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
             script = script.replace(item, level)
     return script
 
-
-def generate_run_script(run: Run, samples: Sample, 
-                        pre_script_location: str,pre_asm_script_location: str, 
-                        per_sample_script_location: str, per_asm_sample_script_location: str,
-                        post_script_location: str,post_asm_script_location: str) -> str:
- 
-    #exit(1)
+def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per_sample_script_location: str, post_script_location: str) -> str:
     script = ""
-    print(f"run type is {run['type']}")
-    print(f"pre_script_location is {pre_script_location}")
-    
+    if pre_script_location != None:
+        with open(pre_script_location, "r") as pre_script_file:
+            pre_script = pre_script_file.read()
+            script = script + replace_run_info_in_script(pre_script, run)
 
-    if run["type"] == "SEQ":    
-        if pre_script_location != None:
-            with open(pre_script_location, "r") as pre_script_file:
-                pre_script = pre_script_file.read()
-                script = script + replace_run_info_in_script(pre_script, run)
-        if per_sample_script_location != None:
-            with open(per_sample_script_location, "r") as per_sample_script_file:
-                per_sample_script = per_sample_script_file.read()
-                per_sample_script = replace_run_info_in_script(per_sample_script, run)
-                for sample in samples:
-                    script = script + replace_sample_info_in_script(per_sample_script, sample)
-        if post_script_location != None:
-            with open(post_script_location, "r") as post_script_file:
-                post_script = post_script_file.read()
-                script = script + replace_run_info_in_script(post_script, run)
-    
-    elif run["type"] == "ASM":
-        if pre_asm_script_location != None:
-            with open(pre_asm_script_location, "r") as pre_script_file:
-                pre_asm_script = pre_asm_script_file.read()
-                script = script + replace_run_info_in_script(pre_asm_script, run)
-        if per_asm_sample_script_location != None:
-            with open(per_asm_sample_script_location, "r") as per_asm_sample_script_file:
-                per_asm_sample_script = per_asm_sample_script_file.read()
-                per_asm_sample_script = replace_run_info_in_script(per_asm_sample_script, run)
-                for sample in samples:
-                    script = script + replace_sample_info_in_script(per_asm_sample_script, sample)
-        if post_asm_script_location != None:
-            with open(post_asm_script_location, "r") as post_script_file:
-                post_asm_script = post_asm_script_file.read()
-                script = script + replace_run_info_in_script(post_script, run)
+    if per_sample_script_location != None:
+        with open(per_sample_script_location, "r") as per_sample_script_file:
+            per_sample_script = per_sample_script_file.read()
+        per_sample_script = replace_run_info_in_script(per_sample_script, run)
+        for sample in samples:
+            script = script + replace_sample_info_in_script(per_sample_script, sample)
+
+    if post_script_location != None:
+        with open(post_script_location, "r") as post_script_file:
+            post_script = post_script_file.read()
+        script = script + replace_run_info_in_script(post_script, run)
 
     return script
-
 
 def run_pipeline(args: object) -> None:
     if not os.path.isdir(args.outdir):
@@ -381,9 +365,9 @@ def run_pipeline(args: object) -> None:
     script = generate_run_script(
         run,
         samples,
-        args.pre_script,args.pre_asm_script,
-        args.per_sample_script,args.per_asm_sample_script,
-        args.post_script,args.post_asm_script)
+        args.pre_script,
+        args.per_sample_script,
+        args.post_script)
     with open("run_script.sh", "w") as fh:
         fh.write(script)
 

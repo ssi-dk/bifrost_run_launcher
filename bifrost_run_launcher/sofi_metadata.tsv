@@ -1,0 +1,2 @@
+sample_name	provided_species	institution	group	experiment_name	sequence_run_date	sofi_sequence_id	filenames	project_no	project_title
+1910M50353	Campylobacter jejuni	SSI	FBI	Campy_end2end_test	2024-10-22	1910M50353_Campy_end2end_test_SSI	1910M50353_S34_L555_R1_001.fastq.gz/1910M50353_S34_L555_R2_001.fastq.gz	1	Surveillance

@@ -142,12 +142,6 @@ def parse_and_run(args: List[str]) -> None:
         type=types.file
     )
     parser.add_argument(
-        '-post_asm', '--post_asm_script',
-        help='Post script for assembly runs',
-        #default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_post_asm']),
-        type=types.file
-    )
-    parser.add_argument(
         '-meta', '--run_metadata',
         help='Run metadata tsv',
         default=os.path.join(os.environ.get('BIFROST_RUN_DIR', os.getcwd()), COMPONENT['options']['default_meta']),
