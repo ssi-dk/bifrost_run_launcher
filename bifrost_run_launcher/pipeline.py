@@ -23,11 +23,11 @@ import argparse
 os.umask(0o002)
 
 def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pd.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
-    print("parse_directory")
-    print(f"file name list is {file_name_list}")
-    #exit(1)
+    #print("parse_directory")
+    #print(f"file name list is {file_name_list}")
+    
     all_files: Set[str] = set(os.listdir(directory))
-    print(f"all files are : {all_files}")
+    #print(f"all files are : {all_files}")
     unused_files: Set[str] = all_files
     sample_dict = {}
     bifrost_mode = None #Either SEQ or ASM
@@ -38,7 +38,16 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
 
     for sample_files in file_name_list:
         print(f"sample files: {sample_files}")
-        file_extensions = {os.path.splitext(f)[1].lower() for f in sample_files} # define as a set {} for issubset function below
+        #file_extensions = {os.path.splitext(f)[1].lower() for f in sample_files} # define as a set {} for issubset function below
+        #print(f"file extensions are {file_extensions}")
+        file_extensions = set()
+        for f in sample_files:
+            base, ext = os.path.splitext(f)  # Extract first extension
+            if ext == ".gz":  # Handle double extensions like .fastq.gz
+                base, ext = os.path.splitext(base)  # Extract real file type before .gz
+                file_extensions.add(ext.lower())  # Normalize to lowercase
+
+        #print(f"Extracted file extensions: {file_extensions}")
         
         # checking if sequence reads
         if file_extensions.issubset(seq_reads_ext):
@@ -76,8 +85,8 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
 
     try:
         df = pd.read_table(run_metadata)
-        print("\n[DEBUG] Raw metadata before processing:")
-        print(df.to_string()) 
+        #print("\n[DEBUG] Raw metadata before processing:")
+        #print(df.to_string()) 
 
         # Rename columns if a mapping file is provided
         if rename_column_file:
@@ -86,14 +95,13 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
 
         # Drop unnamed columns (e.g., empty trailing columns from Excel)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        print("\n[DEBUG] after unamed columns:")
-        print(df.to_string())
+        #print("\n[DEBUG] after unamed columns:")
+        #print(df.to_string())
     
         # Drop rows with missing `sample_name` or `filenames`
         df = df.dropna(subset=["sample_name", "filenames"])
-
-        print("\n[DEBUG] after dropped names:")
-        print(df.to_string())
+        #print("\n[DEBUG] after dropped names:")
+        #print(df.to_string())
 
         # Save original `sample_name` before cleaning
         df["temp_sample_name"] = df["sample_name"]
@@ -101,122 +109,32 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         # Clean sample names
         df["sample_name"] = df["sample_name"].astype(str).str.strip()
         df["sample_name"] = df["sample_name"].str.replace(r"[^a-zA-Z0-9-_]", "_", regex=True)
-        print("\n[DEBUG] after clean names:")
-        print(df.to_string())
+        #print("\n[DEBUG] after clean names:")
+        #print(df.to_string())
 
         # Track changed and duplicated sample names
         df["changed_sample_names"] = df["sample_name"] != df["temp_sample_name"]
         df["duplicated_sample_names"] = df["sample_name"].duplicated(keep="first")
-        print("\n[DEBUG] after duplicated names:")
-        print(df.to_string())
+        #print("\n[DEBUG] after duplicated names:")
+        #print(df.to_string())
 
         # Convert filenames from a string to a tuple
         df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/')))
-        print("\n[DEBUG] after tuple names:")
-        print(df.to_string())
+        #print("\n[DEBUG] after tuple names:")
+        #print(df.to_string())
 
         # Initialize tracking columns
         df["haveReads"] = False
+        df["haveAsm"] = False
         df["haveMetaData"] = True
-        print("\n[DEBUG] final:")
-        print(df.to_string())
+        #print("\n[DEBUG] final:")
+        #print(df.to_string())
         
-        exit(1)
         return df
     
     except Exception as e:
         print(traceback.format_exc())
         raise Exception("Error processing metadata file") from e
-
-
-def format_metadata_v2(run_metadata: TextIO, rename_column_file: TextIO = None) -> pd.DataFrame:
-    print("inside format_metadata")
-    """
-    Reads and ensure correct format for metadata based on input file and returns pandas dataframe for processed file
-    """
-    #exit(1)
-    df = None
-
-    df = pd.read_table(run_metadata) 
-    
-    print(f"reading metadata {run_metadata}")
-    
-    print("\n[DEBUG] Metadata file loaded successfully!")
-    print(df.head())  # Show first 5 rows
-    print("\n[DEBUG] Column names detected:", df.columns.tolist())
-
-    if rename_column_file is not None:
-        with open(rename_column_file, "r") as rename_file:
-            df = df.rename(columns=json.load(rename_file))
-    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-    samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
-    samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
-    idx_to_drop = samples_no_index.union(samples_no_files_index)
-    missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
-    print(f"samples {missing_files} missing files.")
-    
-    print(df.head())  # Show first 5 rows
-
-    exit(1)
-
-    try:
-        df = pd.read_table(run_metadata)  # If space-separated, change to `delim_whitespace=True`
-        #df = pd.read_csv(run_metadata, delim_whitespace=True, header=0)
-        #df.columns = ["sample_name", "species", "institution", "lab", "project", "date", "full_id", "filenames", "read_type", "purpose"]
-        
-        print("\n[DEBUG] Metadata file loaded successfully!")
-        print(df.head())  # Show first 5 rows
-        print("\n[DEBUG] Column names detected:", df.columns.tolist())
-           
-        # rename columns based on json column input ensuring identical column names
-        if rename_column_file is not None: 
-            with open(rename_column_file, "r") as rename_file:
-                df = df.rename(columns=json.load(rename_file))
-
-        # clean up columns and data samples
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')] #remove unnamed columns
-        samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
-        samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
-        idx_to_drop = samples_no_index.union(samples_no_files_index)
-        missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
-        print(f"samples {missing_files} missing files.")
-        df = df.drop(idx_to_drop)
-
-        # clean up sample names
-        df["sample_name"] = df["sample_name"].astype('str')
-        df["temp_sample_name"] = df["sample_name"]
-        df["sample_name"] = df["sample_name"].apply(lambda x: x.strip())
-        df["sample_name"] = df["sample_name"].str.replace(re.compile("[^a-zA-Z0-9-_]"), "_", regex=True)
-        
-        # check for modified sample names
-        df["changed_sample_names"] = df['sample_name'] != df['temp_sample_name']
-        df["duplicated_sample_names"] = df.duplicated(subset="sample_name", keep="first")
-
-        #checks if there is assembly or read data to remove samples without anything
-        df["run_type"] = df["filenames"].apply(
-            lambda x: "ASM" if any(f.endswith((".fa", ".fasta", ".fa.gz", ".fasta.gz")) for f in x)
-            else "SEQ" if any(f.endswith((".fq", ".fastq", ".fq.gz", ".fastq.gz")) for f in x)
-            else None
-        )
-
-        df["haveData"] = False # true when files are confirmed
-        df["haveData"] = df["run_type"].notna()
-        df = df[df["haveData"] == True] 
-
-        df["haveMetaData"] = True # assume all have metadata
-
-        #create filenames to tuples - to ensure structure for huge data collection?
-        df["filenames"] = df["filenames"].apply(lambda x: tuple(x.strip().split('/')))
-
-        df = df.map(lambda x: None if pandas.isna(x) else x)
-
-        return df
-
-    except:
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-            print(df, file=sys.stderr)
-            print(traceback.format_exc(), file=sys.stderr)
-            raise Exception("bad metadata and/or rename column file")
 
 def get_sample_names(metadata: pd.DataFrame) -> List["str"]:
     return list(set(metadata["sample_name"].tolist()))
@@ -271,6 +189,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
                     ]
                 }
             })
+            print(paired_reads)
             sample.set_category(paired_reads)
         elif run_type == "ASM":
             assembly_category = Category(value={
@@ -356,12 +275,15 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
 
 
 def generate_run_script(run: Run, samples: Sample, 
-                        pre_script_location: str, pre_asm_script_location: str, 
-                        per_sample_script_location: str, per_asm_sample_script_location: str, 
-                        post_script_location: str, post_asm_script_location: str) -> str:
+                        pre_script_location: str,pre_asm_script_location: str, 
+                        per_sample_script_location: str, per_asm_sample_script_location: str,
+                        post_script_location: str,post_asm_script_location: str) -> str:
  
     #exit(1)
     script = ""
+    print(f"run type is {run['type']}")
+    print(f"pre_script_location is {pre_script_location}")
+    
 
     if run["type"] == "SEQ":    
         if pre_script_location != None:
@@ -459,9 +381,9 @@ def run_pipeline(args: object) -> None:
     script = generate_run_script(
         run,
         samples,
-        args.pre_script,
-        args.per_sample_script,
-        args.post_script)
+        args.pre_script,args.pre_asm_script,
+        args.per_sample_script,args.per_asm_sample_script,
+        args.post_script,args.post_asm_script)
     with open("run_script.sh", "w") as fh:
         fh.write(script)
 
