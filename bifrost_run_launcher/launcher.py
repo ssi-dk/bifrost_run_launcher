@@ -118,21 +118,9 @@ def parse_and_run(args: List[str]) -> None:
         type=types.file,
     )
     parser.add_argument(
-        '-pre_asm', '--pre_asm_script',
-        help='Pre script for assembly runs',
-        #default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_pre_asm']),
-        type=types.file
-    )
-    parser.add_argument(
         '-per', '--per_sample_script',
         help='Per sample script template run on each sample',
         default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_per']),
-        type=types.file
-    )
-    parser.add_argument(
-        '-per_asm', '--per_asm_sample_script',
-        help='Per sample script for assembly runs',
-        #default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_per_asm']),
         type=types.file
     )
     parser.add_argument(
@@ -148,9 +136,11 @@ def parse_and_run(args: List[str]) -> None:
         type=types.file
     )
     parser.add_argument(
-        '-reads', '--reads_folder',
+        #the default is put to None so it will automatically identify if cron run is reads or assembly, and keep the original reads arg for 
+        # simplicity of older code, but add input and asm for readability of newer code as of feb 2025 
+        '-input','--input_folder','-reads','--reads_folder','-assembly','--assembly_folder',
         help='Run metadata tsv',
-        default=os.path.join(os.environ.get('BIFROST_RUN_DIR', os.getcwd()), COMPONENT['options']['default_reads']),
+        default=None, #os.path.join(os.environ.get('BIFROST_RUN_DIR', os.getcwd()), COMPONENT['options']['default_reads']), #this is just if we run with sequencing reads
         type=types.directory
     )
     parser.add_argument(

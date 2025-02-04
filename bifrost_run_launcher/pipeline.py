@@ -19,8 +19,54 @@ import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
 from pymongo.errors import DuplicateKeyError
 import argparse
+import hashlib
+from datetime import datetime
 
 os.umask(0o002)
+
+def calculate_md5(sequence: str) -> str:
+    md5_hash = hashlib.md5(sequence.encode('utf-8')).hexdigest()
+    return md5_hash
+
+def save_contigs_data(file_path):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"FASTA file not found at: {file_path}")
+
+    print(f"file path is {file_path}")
+
+    contig_lengths = []
+    gc_contents = []
+    date = datetime.now().strftime('%Y-%m-%d')
+
+    with open(file_path, 'r') as fasta_file:
+        for record in SeqIO.parse(fasta_file, "fasta"):
+            contig_name = record.id  # Contig header
+            print(f"{contig_name}")
+            contig_seq = str(record.seq).replace("\n", "")  # Sequence without newlines
+            #contig_data[contig_name] = contig_seq
+            contig_length = len(contig_seq)
+            gc_content = round((sum(contig_seq.count(x) for x in "GCgc") / contig_length) * 100, 2)
+            contig_lengths.append(contig_length)
+            gc_contents.append(gc_content)
+
+            if verbose:
+                print(f"Saving contig data for sample: {sample_name}, component: {component_name}, date {date}")
+                print(f"Contig Name: {contig_name}")
+                print(f"Length: {contig_length}")
+                print(f"GC Content: {gc_content}%")
+                #print(f"Sequence: {contig_seq[:10]}...")
+                print("-" * 50)
+
+    fasta_md5 = calculate_md5("".join(contig_data.values()))
+    contig_no = len(contig_lengths)
+
+    return fasta_md5,contig_no,contig_lengths,gc_contents,date
+
+    #contigs["summary"]["md5"] = fasta_md5
+    #contigs["summary"]["num_contigs"] = len(contig_lengths)
+    #contigs["summary"]["total_length"] = contig_lengths
+    #contigs["summary"]["gc_contents"] = gc_contents
+
 
 def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pd.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
     #print("parse_directory")
@@ -90,10 +136,16 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         #print("\n[DEBUG] Raw metadata before processing:")
         #print(df.to_string()) 
 
-        # Rename columns if a mapping file is provided
-        if rename_column_file:
+        # Rename columns if a colmap json mapping file is provided
+        if rename_column_file is not None:
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
+                print("\n[DEBUG] Columns renamed with colmap json to:", df.columns.tolist())
+        else:
+            expected_columns = ["sample_name", "species", "institution", "lab", "project", "date", "full_id", "filenames", "read_type", "purpose"]
+            if len(df.columns) == len(expected_columns):
+                df.columns = expected_columns
+                print("\n[DEBUG] Columns renamed with expected file name to:", df.columns.tolist())
 
         # Drop unnamed columns (e.g., empty trailing columns from Excel)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
@@ -163,6 +215,11 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
     
+
+    if run_type == "ASM":
+        #get_ASM_data
+        fasta_md5,contig_no,contig_lengths,gc_contents,date = save_contigs_data(os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
+
     for sample_name in sample_dict:
         #metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         #metadata.loc[metadata["sample_name"] == sample_name, "hasData"] = True
@@ -192,16 +249,20 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
             print(paired_reads)
             sample.set_category(paired_reads)
         elif run_type == "ASM":
-            assembly = Category(value={
+            contigs = Category(value={
                 "name": "assembly",
                 "component": {"id": component["_id"], "name": component["name"]},
                 "summary": {
-                    "data": [
-                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
-                    ]
-                }
+                    "data": [os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))],
+                    "md5":fasta_md5,
+                    "num_contigs":contig_no,
+                    "total_length":contig_lengths,
+                    "gc_contents":gc_contents,
+                    "date_added":date                   
+                },
+                "report": {}
             })
-            sample.set_category(assembly)
+            sample.set_category(contigs)
 
         #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
         sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
@@ -336,7 +397,7 @@ def run_pipeline(args: object) -> None:
             print(f"{run = }\n{samples = }")
         #run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         run, samples = initialize_run(run=run, samples=samples, component=args.component, 
-                                      input_folder=args.reads_folder, run_metadata=args.run_metadata, 
+                                      input_folder=args.input_folder, run_metadata=args.run_metadata, 
                                       run_type=args.run_type, rename_column_file=args.run_metadata_column_remap,
                                       component_subset=args.component_subset)
 

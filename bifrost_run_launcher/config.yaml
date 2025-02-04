@@ -42,7 +42,7 @@ options:
   default_post: "post.sh"
   default_pre_asm: "pre_asm.sh"
   default_per_asm: "per_asm_sample.sh"
-  default_post_asm: "post_asm.sh"
+  default_post_asm: "post.sh"
   default_meta: "run_metadata.tsv"
   default_reads: "samples"
   default_colmap: "rename.json"
