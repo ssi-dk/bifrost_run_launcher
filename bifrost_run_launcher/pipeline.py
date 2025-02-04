@@ -21,6 +21,7 @@ from pymongo.errors import DuplicateKeyError
 import argparse
 import hashlib
 from datetime import datetime
+from Bio import SeqIO
 
 os.umask(0o002)
 
@@ -34,6 +35,7 @@ def save_contigs_data(file_path):
 
     print(f"file path is {file_path}")
 
+    contig_data = {}
     contig_lengths = []
     gc_contents = []
     date = datetime.now().strftime('%Y-%m-%d')
@@ -41,21 +43,13 @@ def save_contigs_data(file_path):
     with open(file_path, 'r') as fasta_file:
         for record in SeqIO.parse(fasta_file, "fasta"):
             contig_name = record.id  # Contig header
-            print(f"{contig_name}")
+            #print(f"{contig_name}")
             contig_seq = str(record.seq).replace("\n", "")  # Sequence without newlines
-            #contig_data[contig_name] = contig_seq
+            contig_data[contig_name] = contig_seq
             contig_length = len(contig_seq)
             gc_content = round((sum(contig_seq.count(x) for x in "GCgc") / contig_length) * 100, 2)
             contig_lengths.append(contig_length)
             gc_contents.append(gc_content)
-
-            if verbose:
-                print(f"Saving contig data for sample: {sample_name}, component: {component_name}, date {date}")
-                print(f"Contig Name: {contig_name}")
-                print(f"Length: {contig_length}")
-                print(f"GC Content: {gc_content}%")
-                #print(f"Sequence: {contig_seq[:10]}...")
-                print("-" * 50)
 
     fasta_md5 = calculate_md5("".join(contig_data.values()))
     contig_no = len(contig_lengths)
@@ -69,7 +63,7 @@ def save_contigs_data(file_path):
 
 
 def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pd.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
-    #print("parse_directory")
+    print("parse_directory")
     #print(f"file name list is {file_name_list}")
     
     all_files: Set[str] = set(os.listdir(directory))
@@ -114,8 +108,9 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
             bifrost_mode = "ASM"    
         
         print(f"the bifrost launching mode is {bifrost_mode}")
-
+        print(f"sample files {sample_files}")
         if all_files.issuperset(sample_files):
+            print(f"all files superset {sample_files}")
             unused_files.difference_update(sample_files)
             sample_name = run_metadata.loc[lambda df: df["filenames"] == sample_files, "sample_name"]
             for n in sample_name:
@@ -209,16 +204,15 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
 
     sample_dict,detected_bifrost_type,unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     
+    print(f"sample dict {sample_dict}")
+    print(f"bifrost type {detected_bifrost_type}")
+    print(f"unused files {unused_files}")
+
     if run_type is None:
         run_type = detected_bifrost_type
         
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
-    
-
-    if run_type == "ASM":
-        #get_ASM_data
-        fasta_md5,contig_no,contig_lengths,gc_contents,date = save_contigs_data(os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
 
     for sample_name in sample_dict:
         #metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
@@ -228,7 +222,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
         sample["run"] = run_reference
         sample["display_name"] = sample_name
         sample_exists = False
-        
+        print(f"sample: {sample} \n sample name: {sample_name} \n reference: {run_reference}")
         for i in range(len(samples)):
             if samples[i]["name"] == sample_name:
                 print(f"Sample {sample_name} exists")
@@ -249,6 +243,8 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
             print(paired_reads)
             sample.set_category(paired_reads)
         elif run_type == "ASM":
+            fasta_md5,contig_no,contig_lengths,gc_contents,date = save_contigs_data(os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
+            
             contigs = Category(value={
                 "name": "assembly",
                 "component": {"id": component["_id"], "name": component["name"]},
@@ -280,12 +276,13 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
             print(f"Sample {sample_name} exists - reusing")
         
         sample_list.append(sample)
+
     
     run['component_subset'] = component_subset # this might just be for annotating in the db
     run["type"] = run_type
+
+    print(os.getcwd())
     run["path"] = os.getcwd()
-    print(f"THE RUN TYPE FOR ISSUES ARE {run_type}")
-    print(run["type"])
 
     if run["type"] == "SEQ":
         run["issues"] = {

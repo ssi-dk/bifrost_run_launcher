@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 import traceback
-
+from Bio import SeqIO
 
 # Get the directory where launcher.py is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
