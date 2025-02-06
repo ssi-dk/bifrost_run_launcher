@@ -210,7 +210,8 @@ def initialize_run(run: Run, samples: List[Sample], component: Component,
 
     if run_type is None:
         run_type = detected_bifrost_type
-        
+    
+    print(f"Detected run type is {run_type}")
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
 
