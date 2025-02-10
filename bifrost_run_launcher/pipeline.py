@@ -207,7 +207,7 @@ def run_pipeline(args: object) -> None:
     os.chdir(args.outdir)
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
-    print(f"{run_reference.json = }")
+    #print(f"{run_reference.json = }")
     if args.re_run:
         run: Run = Run.load(run_reference)
         if run is None and args.run_id is not None: # mistyped id
@@ -228,8 +228,8 @@ def run_pipeline(args: object) -> None:
     runs = db.runs
     run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
     if "_id" not in run.json or args.sample_subset is None:
-        if args.debug:
-            print(f"{run = }\n{samples = }")
+        #if args.debug:
+        #    print(f"{run = }\n{samples = }")
         run, samples = initialize_run(run=run, samples=samples, component=args.component, input_folder=args.reads_folder, run_metadata=args.run_metadata, run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")

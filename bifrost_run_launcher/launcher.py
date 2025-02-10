@@ -6,10 +6,20 @@ import argparse
 import os
 import sys
 import traceback
-from bifrost_run_launcher import pipeline
+
+#from bifrost_run_launcher import pipeline
+# Get the directory where launcher.py is located
+#current_dir = os.path.dirname(os.path.abspath(__file__))
+pipeline_dir = "/home/projects/fvst_ssi_dtu/apps/sofi_bifrost_dev/scripts/bifrost/components/bifrost_run_launcher/bifrost_run_launcher"
+sys.path.append(pipeline_dir)
+import pipeline
+#from bifrost_run_launcher import pipeline
+print(f"Using pipeline.py from: {pipeline.__file__}\n")
+
 from bifrostlib import datahandling
 from bifrostlib.datahandling import Component
 from bifrostlib.datahandling import ComponentReference
+
 import yaml
 import pprint
 from typing import List, Dict
