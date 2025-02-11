@@ -222,10 +222,10 @@ def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
 
 def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
-                   run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
+                   run_metadata: str = "run_metadata.txt", rename_column_file: str = None,
                    #regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$",
                    component_subset: str = "ccc,aaa,bbb"
-                   ) -> Tuple[Run, List[Sample]]:
+                   ) -> Tuple[Run, List[Sample], str]:
 
     logging.info(f"Initializing run: {run['name']} with {len(samples)} samples")
 
@@ -233,6 +233,8 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     file_names_in_metadata = get_file_pairs(metadata)
     sample_dict, unused_files, run_mode = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     
+    run["type"] = "assembly" if run_mode == "ASM" else "sequencing"
+
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
     
@@ -253,18 +255,30 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 sample_exists = True
                 sample = samples[i]
         
-        paired_reads = Category(value={
-            "name": "paired_reads",
-            "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
-            "summary": {
+        if run_mode == "SEQ":
+            paired_reads = Category(value={
+                "name": "paired_reads",
+                "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
+                "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
                     ]
-            }
-        })
-
-        sample.set_category(paired_reads)
+                }
+            })
+            sample.set_category(paired_reads)
+        
+        elif run_mode == "ASM":
+            assembly = Category(value={
+                "name": "assembly",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": {
+                    "data": [
+                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
+                    ]
+                }
+            })
+            sample.set_category(assembly)
 
         #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
         sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
@@ -285,7 +299,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         sample_list.append(sample)
 
     run['component_subset'] = component_subset # this might just be for annotating in the db
-    run["type"] = run_type
+    
     run["path"] = os.getcwd()
     run["issues"] = {
         "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
@@ -304,7 +318,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             fh.write(pprint.pformat(sample.json))
 
     logging.info(f"Run {run['name']} initialized with {len(sample_list)} samples.")
-    return (run, sample_list)
+    return (run, sample_list, run_mode)
 
 def replace_run_info_in_script(script: str, run: object) -> str:
     positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+_*[a-zA-Z]+"), script)
@@ -403,9 +417,9 @@ def run_pipeline(args: object) -> None:
 
     if "_id" not in run.json or args.sample_subset is None:
         logging.info(f"Initializing new run: {run['name']}")
-        run, samples = initialize_run(run=run, samples=samples, component=args.component, 
+        run, samples, run_mode = initialize_run(run=run, samples=samples, component=args.component, 
                                       input_folder=args.reads_folder, run_metadata=args.run_metadata, 
-                                      run_type=args.run_type, rename_column_file=args.run_metadata_column_remap, 
+                                      rename_column_file=args.run_metadata_column_remap, 
                                       component_subset=args.component_subset)
         logging.info(f"Run {run['name']} initialized successfully.")
     else:
@@ -429,16 +443,25 @@ def run_pipeline(args: object) -> None:
             samples = [samples[i] for i in sample_inds_to_keep]
 
     logging.info("Generating run script.")
-
-    run_mode = "seq"
-
-    script = generate_run_script(
-        run,
-        samples,
-        args.pre_script,
-        args.per_sample_script,
-        args.post_script)
     
+    if run_mode == "SEQ":
+        script = generate_run_script(
+            run,
+            samples,
+            args.pre_script,
+            args.per_sample_script,
+            args.post_script)
+
+    """
+    if run_mode == "ASM":
+        script = generate_run_script(
+            run,
+            samples,
+            args.pre_script_asm,
+            args.per_sample_script,
+            args.post_script_asm)
+    """
+
     with open("run_script.sh", "w") as fh:
         fh.write(script)
     
