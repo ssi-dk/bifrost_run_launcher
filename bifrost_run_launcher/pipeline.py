@@ -23,6 +23,7 @@ import hashlib
 from datetime import datetime
 from Bio import SeqIO
 import logging
+import subprocess
 
 os.umask(0o002)
 
@@ -143,9 +144,15 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
             #print("inside sequence reads module")
             # For paired-end sequence read files - ensure exactly two files exist
             if len(sample_files) != 2:
-                print("Sample files:\n"+"\n".join(sample_files),file=sys.stderr)
+                logging.error(f"Error: Sample {sample_files} must have exactly two read files.")
                 raise ValueError(f"Error: Sample {sample_files} must have exactly two read files.")
             bifrost_mode = "SEQ"
+        elif file_extensions.issubset(asm_ext):
+            logging.info(f"Bifrost mode: {bifrost_mode}")
+            if len(sample_files) != 1:
+                logging.error(f"Error: Sample {sample_files} must have exactly one assembly file.")
+                raise ValueError(f"Error: Sample {sample_files} must have exactly one assembly file.")
+            bifrost_mode = "ASM"
 
         if all_files.issuperset(sample_files):
             unused_files.difference_update(sample_files)
@@ -155,8 +162,7 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
 
     logging.info(f"Bifrost mode: {bifrost_mode}")
     unused_files.discard(run_metadata_filename)
-    return (sample_dict, list(unused_files))
-
+    return (sample_dict, list(unused_files), bifrost_mode)
 
 def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> pd.DataFrame:
     df = None
@@ -209,13 +215,11 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         logging.error(traceback.format_exc())
         raise
 
-
 def get_sample_names(metadata: pd.DataFrame) -> List["str"]:
     return list(set(metadata["sample_name"].tolist()))
 
 def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
-
 
 def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
@@ -227,7 +231,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
 
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
-    sample_dict, unused_files = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
+    sample_dict, unused_files, run_mode = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
@@ -302,14 +306,12 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     logging.info(f"Run {run['name']} initialized with {len(sample_list)} samples.")
     return (run, sample_list)
 
-
 def replace_run_info_in_script(script: str, run: object) -> str:
     positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+_*[a-zA-Z]+"), script)
     for item in positions_to_replace:
         (key, value) = (item.split("."))
         script = script.replace(item, run[value])
     return script
-
 
 def replace_sample_info_in_script(script: str, sample: object) -> str:
     positions_to_replace = re.findall(re.compile(r"\$sample\.[\.\[\]_a-zA-Z0-9]+"), script)
@@ -331,12 +333,11 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
             script = script.replace(item, level)
     return script
 
-
 def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per_sample_script_location: str, post_script_location: str) -> str:
     logging.info(f"Generating run script for {run['name']}")
     
     script = ""
-
+    
     if pre_script_location != None:
         with open(pre_script_location, "r") as pre_script_file:
             logging.info(f"Reading pre-run script from {pre_script_location}")
@@ -347,7 +348,7 @@ def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per
         logging.info(f"Reading per-sample script from {per_sample_script_location}")
         with open(per_sample_script_location, "r") as per_sample_script_file:
             per_sample_script = per_sample_script_file.read()
-
+   
         per_sample_script = replace_run_info_in_script(per_sample_script, run)
 
         for sample in samples:
@@ -357,18 +358,17 @@ def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per
         logging.info(f"Reading post-run script from {post_script_location}")
         with open(post_script_location, "r") as post_script_file:
             post_script = post_script_file.read()
+            
         script = script + replace_run_info_in_script(post_script, run)
-
+    
     logging.info(f"Run script generated successfully: {len(script)} characters")
     return script
-
 
 def run_pipeline(args: object) -> None:
     #setup_logging(log_dir="logs", script_name=__file__)  # logging is initialized
     
-    print("Current Directory 1:", os.getcwd())
     os.chdir(args.outdir)
-    print("Current Directory 2:", os.getcwd())
+    
     tmp_folder = os.getcwd()
     setup_logging(tmp_folder,os.path.basename(__file__))
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
@@ -429,7 +429,9 @@ def run_pipeline(args: object) -> None:
             samples = [samples[i] for i in sample_inds_to_keep]
 
     logging.info("Generating run script.")
-    
+
+    run_mode = "seq"
+
     script = generate_run_script(
         run,
         samples,

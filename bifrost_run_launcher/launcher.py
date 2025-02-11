@@ -125,6 +125,11 @@ def parse_and_run(args: List[str]) -> None:
         type=types.file
     )
     parser.add_argument(
+        '-mode','--run_mode',
+        help='run mode as sequence or assembly',
+        default="seq",
+    )
+    parser.add_argument(
         '-post', '--post_script',
         help='Post script template run after sample script',
         default=os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_post']),
@@ -192,6 +197,7 @@ def parse_and_run(args: List[str]) -> None:
         else:
             pipeline_options, junk = parser.parse_known_args(extras)
             pipeline_options.component = COMPONENT # Want to access the component as well so forcing it as an option
+
             if pipeline_options.run_name is None:
                 pipeline_options.run_name = os.path.abspath(pipeline_options.outdir).split("/")[-1]
             if pipeline_options.debug is True:
