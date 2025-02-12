@@ -33,14 +33,14 @@ def setup_logging(log_dir: str,script_name: str):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     script_basename = os.path.splitext(os.path.basename(script_name))[0]
     
-    print("script basename: {basename}") 
+    print(f"script basename: {script_basename}") 
     # Ensure log directory exists
     os.makedirs(log_dir, exist_ok=True)
 
     # Construct log file path correctly
     log_file = os.path.join(log_dir, f"bifrost_script_{script_basename}.log")
 
-    print("log file {log_file}")
+    print(f"log file {log_file}")
 
     # Get root logger
     logger = logging.getLogger()
@@ -274,7 +274,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         
         elif run_mode == "ASM":
             fasta_md5,contig_no,contig_lengths,gc_contents,date = save_contigs_data(os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
-            
+            logging.info(f"MetaData for assembly path {os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))}")
             assembly = Category(value={
                 "name": "assembly",
                 "component": {"id": component["_id"], "name": component["name"]},
