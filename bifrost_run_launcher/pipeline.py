@@ -160,6 +160,10 @@ def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_me
             for n in sample_name:
                 sample_dict[n] = list(sample_files)
 
+    if bifrost_mode is None:
+        logging.error(f"Error: Unable to create run_script for pipeline initiation due to no valid sequencing or assembly files detected.")
+        raise ValueError("Unable to create run_script for pipeline initiation due to no valid sequencing or assembly files detected.")
+
     logging.info(f"Bifrost mode: {bifrost_mode}")
     unused_files.discard(run_metadata_filename)
     return (sample_dict, list(unused_files), bifrost_mode)
@@ -269,16 +273,26 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             sample.set_category(paired_reads)
         
         elif run_mode == "ASM":
+            fasta_md5,contig_no,contig_lengths,gc_contents,date = save_contigs_data(os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
+            
             assembly = Category(value={
                 "name": "assembly",
                 "component": {"id": component["_id"], "name": component["name"]},
                 "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
-                    ]
-                }
+                    ],
+                    "md5":fasta_md5,
+                    "num_contigs":contig_no,
+                    "total_length":contig_lengths,
+                    "gc_contents":gc_contents,
+                    "date_added":date
+                },
+                "report": {}
             })
             sample.set_category(assembly)
+
+        # consider if report {} is necessary
 
         #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
         sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
@@ -301,13 +315,25 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     run['component_subset'] = component_subset # this might just be for annotating in the db
     
     run["path"] = os.getcwd()
-    run["issues"] = {
-        "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
-        "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
-        "unused_files": unused_files,
-        "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
-        "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
-    }
+
+    
+    if run_mode == "SEQ":
+        run["issues"] = {
+            "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
+            "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
+            "unused_files": unused_files,
+            "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
+            "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
+        }
+    elif run_mode == "ASM":
+        run["issues"] = {
+            "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
+            "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
+            "unused_files": unused_files,
+            "samples_without_assembly": list(metadata[metadata['haveAsm'] == False]['sample_name']),
+            "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
+        }
+
     run.samples = [i.to_reference() for i in sample_list]
     run.save()
 
@@ -452,16 +478,15 @@ def run_pipeline(args: object) -> None:
             args.per_sample_script,
             args.post_script)
 
-    """
+    # for now try with the same scripts, but make placeholder for additional pre,per and post
     if run_mode == "ASM":
         script = generate_run_script(
             run,
             samples,
-            args.pre_script_asm,
+            args.pre_script,
             args.per_sample_script,
-            args.post_script_asm)
-    """
-
+            args.post_script)
+    
     with open("run_script.sh", "w") as fh:
         fh.write(script)
     
