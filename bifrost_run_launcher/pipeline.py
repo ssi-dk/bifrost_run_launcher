@@ -259,14 +259,17 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     file_names_in_metadata = get_file_pairs(metadata)
     sample_dict, unused_files, run_mode = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
     
-    run["type"] = "assembly" if run_mode == "ASM" else "sequencing"
+    logging.info(f"Initializing run after parse directory with run mode {run_mode}")
+    
+    #run["type"] = "assembly" if run_mode == "ASM" else "SEQ"
 
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
-    
+
+    print(metadata.columns.tolist())
+
     for sample_name in sample_dict:
-        logging.info(f"Processing sample: {sample_name}")
-        logging.info(f"Provided species : {metadata['species']}")
+        logging.info(f"Processing sample: {sample_name} from species {metadata['provided_species']}")
 
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
@@ -306,7 +309,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         
         elif run_mode == "ASM":
             #insert basic information into database using bifrostlib to mimic information obtained for NGS sequence data when running additional components
-            fasta_file_path = os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
+            fasta_file_path = os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
             fasta_md5,contig_lengths,gc_contents = save_contigs_data(fasta_file_path)
             logging.info(f"MetaData for assembly path {os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))}")
 
@@ -315,6 +318,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             fileprefix = os.path.splitext(filename)[0]
             
             current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+            date = datetime.now().strftime('%Y-%m-%d')
             
             #equivalent to the collection called "paired_reads" under "samples" category
             assembly = Category(value={
@@ -333,19 +337,19 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 "component": {"id": ObjectId(), "name": component["name"]},
                 "summary": {
                     "sample_name":fileprefix,
-                    "provided_species":metadata["species"],
+                    "provided_species":metadata["provided_species"],
                     "institution":metadata["institution"],
-                    "group":metadata["lab"],
-                    "experiment_name":metadata["project"],
-                    "sequence_run_date":metadata["date"],
-                    "sofi_sequence_id":metadata["full_id"],
+                    "group":metadata["group"],
+                    "experiment_name":metadata["experiment_name"],
+                    "sequence_run_date":metadata["sequence_run_date"],
+                    "sofi_sequence_id":metadata["sofi_sequence_id"],
                     "filenames":[metadata["filenames"]],
                     "temp_sample_name":fileprefix,
-                    "changed_sample_names":false,
-                    "duplicated_sample_names":false,
-                    "haveReads":false,
-                    "haveMetaData":true,
-                    "haveAsm":true
+                    "changed_sample_names":False,
+                    "duplicated_sample_names":False,
+                    "haveReads":False,
+                    "haveMetaData":True,
+                    "haveAsm":True
                 },
                 "metadata": {
                     "created_at": current_time,
@@ -359,23 +363,24 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
 
             #consider removing this and alter whats_my_species using kraken to also handle assemblies, and then incorporate that component
             #but for now simply use the provided species from the metaData
+
             species_detection = Category(value={
                 "name":"species_detection",
-                "component": {"id": ObjectId(), "assembly"},
+                "component": {"id": ObjectId(),"name": "assembly"},
                 "summary": {
-                    "name_classified_species_1":metadata["species"],
-                    "name_classified_species_2":metadata["species"],
-                    "detected_species":metadata["species"],
-                    "species":metadata["species"]
-                }
-                "report":{}
+                    "name_classified_species_1":metadata["provided_species"],
+                    "name_classified_species_2":metadata["provided_species"],
+                    "detected_species":metadata["provided_species"],
+                    "species":metadata["provided_species"]
+                },
+                "report":{},
                 "metadata": {
                     "created_at": current_time,
                     "updated_at": current_time
                 },
                 "version": {
                     "schema": ["v0_0_0"]
-                }
+                },
             })
             
             sample.set_category(species_detection)
@@ -388,7 +393,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
                     ],
                     "md5":fasta_md5,
-                    "num_contigs":contig_no,
+                    "num_contigs":len(contig_lengths),
                     "total_length":contig_lengths,
                     "gc_contents":gc_contents,
                     "date_added":date
@@ -405,7 +410,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
                     ],
                     "md5":fasta_md5,
-                    "num_contigs":contig_no,
+                    "num_contigs":len(contig_lengths),
                     "total_length":contig_lengths,
                     "gc_contents":gc_contents,
                     "date_added":date
@@ -547,10 +552,44 @@ def run_pipeline(args: object) -> None:
         run: Run = Run(name=args.run_name)
 
     samples: List[Sample] = []
+    sample_components: Dict[str,SampleComponent]={}
+
+    #print(run)
+    #print("---------")
+    #print(run_reference)
+    
+    #samplecomponent_ref = SampleComponentReference(name=SampleComponentReference.name_generator(sample.to_reference(), component.to_reference()))
+    #samplecomponent = SampleComponent.load(samplecomponent_ref)
+    #sample_ref = SampleReference(_id=config.get('sample_id', None), name=config.get('sample_name', None))
+    #sample:Sample = Sample.load(sample_ref) # schema 2.1
+    #samplecomponent_ref = SampleComponentReference(value=samplecomponent_ref_json)
+    #samplecomponent = SampleComponent.load(samplecomponent_ref)
+    #sample = Sample.load(samplecomponent.sample)
+
+    #samplecomponent_ref_json = samplecomponent.to_reference().json
+    
+    #run_reference.json
+    #sample_ref = SampleReference(name="Sample_001")
+    #comp_ref = ComponentReference(name="QC Analysis")
+    #sample_comp = SampleComponent(sample_reference=sample_ref, component_reference=comp_ref)
+    #print(sample_comp.json["name"])  # "Sample_001___QC Analysis"
+
+
     for sample_reference in run.samples:
         sample = Sample.load(sample_reference)
         if sample is not None:
             samples.append(sample)
+    
+    #tmp to try sample_component
+    for sample in samples:
+        sample_ref = sample.to_reference()
+        component_ref = args.component.to_reference()
+        
+        tmp_sample_component = SampleComponent(sample_reference=sample_ref, component_reference=component_ref)
+        sample_component = SampleComponent.load(tmp_sample_component.to_reference())
+        
+        if sample_component is not None:
+            sample_components[sample.json["name"]] = sample_component
 
     # check if the run has an id and whether it exists in the db
     client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
