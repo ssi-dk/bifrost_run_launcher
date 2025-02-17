@@ -13,7 +13,9 @@ from bifrostlib.datahandling import RunReference
 from bifrostlib.datahandling import Run
 from bifrostlib.datahandling import Sample
 from bifrostlib.datahandling import Category
+from bifrostlib.datahandling import SampleComponent
 from bifrostlib.datahandling import Component
+from bifrostlib import common
 import pprint
 import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple
@@ -24,9 +26,11 @@ from datetime import datetime
 from Bio import SeqIO
 import logging
 import subprocess
+from bson import ObjectId
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 
 os.umask(0o002)
-
 
 # Setup logging
 def setup_logging(log_dir: str,script_name: str):
@@ -81,6 +85,27 @@ def calculate_md5_of_file(file_path: str) -> str:
     
     return hash_md5.hexdigest()
 
+def get_file_creation_date(fasta_path: str) -> str:
+    """Returns the creation date of a given file in YYYY-MM-DD format."""
+
+    if not os.path.exists(fasta_path):
+        raise FileNotFoundError(f"File not found: {fasta_path}")
+
+    creation_timestamp = os.path.getctime(fasta_path)
+    creation_date = datetime.fromtimestamp(creation_timestamp).strftime("%Y-%m-%d")
+
+    return creation_date
+
+def convert_objectid(obj):
+    """Convert ObjectId to string recursively in a dictionary."""
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_objectid(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_objectid(item) for item in obj]
+    return obj
+
 def save_contigs_data(file_path):
     if not os.path.exists(file_path):
         logging.error(f"FASTA file not found at: {file_path}")
@@ -91,12 +116,10 @@ def save_contigs_data(file_path):
     contig_data = {}
     contig_lengths = []
     gc_contents = []
-    date = datetime.now().strftime('%Y-%m-%d')
 
     with open(file_path, 'r') as fasta_file:
         for record in SeqIO.parse(fasta_file, "fasta"):
             contig_name = record.id  # Contig header
-            #print(f"{contig_name}")
             contig_seq = str(record.seq).replace("\n", "")  # Sequence without newlines
             contig_data[contig_name] = contig_seq
             contig_length = len(contig_seq)
@@ -105,11 +128,10 @@ def save_contigs_data(file_path):
             gc_contents.append(gc_content)
 
     fasta_md5 = calculate_md5("".join(contig_data.values()))
-    contig_no = len(contig_lengths)
 
-    logging.info(f"FASTA MD5: {fasta_md5}, Contigs: {contig_no}, Avg Length: {sum(contig_lengths)/len(contig_lengths) if contig_lengths else 0:.2f}")
+    logging.info(f"FASTA MD5: {fasta_md5}, Contigs: {len(contig_lengths)}, Avg Length: {sum(contig_lengths)/len(contig_lengths) if contig_lengths else 0:.2f}")
 
-    return fasta_md5,contig_no,contig_lengths,gc_contents,date
+    return fasta_md5,contig_lengths,gc_contents
 
 def parse_directory(directory: str, file_name_list: List[Tuple[str,str]], run_metadata: pd.DataFrame, run_metadata_filename: str) -> Tuple[Dict, List[str]]:
     all_files: Set[str] = set(os.listdir(directory))
@@ -244,6 +266,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     
     for sample_name in sample_dict:
         logging.info(f"Processing sample: {sample_name}")
+        logging.info(f"Provided species : {metadata['species']}")
 
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
@@ -260,6 +283,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 sample = samples[i]
         
         if run_mode == "SEQ":
+            #samples collection 
             paired_reads = Category(value={
                 "name": "paired_reads",
                 "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
@@ -271,13 +295,94 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 }
             })
             sample.set_category(paired_reads)
+            
+            sample_info = Category(value={
+                "name": "sample_info",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": sample_metadata
+            })
+            sample.set_category(sample_info)
+
         
         elif run_mode == "ASM":
-            fasta_md5,contig_no,contig_lengths,gc_contents,date = save_contigs_data(os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
+            #insert basic information into database using bifrostlib to mimic information obtained for NGS sequence data when running additional components
+            fasta_file_path = os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])))
+            fasta_md5,contig_lengths,gc_contents = save_contigs_data(fasta_file_path)
             logging.info(f"MetaData for assembly path {os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))}")
+
+            #create data as an json sample format
+            filename = os.path.basename(fasta_file_path)
+            fileprefix = os.path.splitext(filename)[0]
+            
+            current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+            
+            #equivalent to the collection called "paired_reads" under "samples" category
             assembly = Category(value={
                 "name": "assembly",
                 "component": {"id": component["_id"], "name": component["name"]},
+                "summary": {
+                    "data": [
+                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
+                    ],
+                },
+            })
+            sample.set_category(assembly)
+            
+            sample_info = Category(value={
+                "name": "sample_info",
+                "component": {"id": ObjectId(), "name": component["name"]},
+                "summary": {
+                    "sample_name":fileprefix,
+                    "provided_species":metadata["species"],
+                    "institution":metadata["institution"],
+                    "group":metadata["lab"],
+                    "experiment_name":metadata["project"],
+                    "sequence_run_date":metadata["date"],
+                    "sofi_sequence_id":metadata["full_id"],
+                    "filenames":[metadata["filenames"]],
+                    "temp_sample_name":fileprefix,
+                    "changed_sample_names":false,
+                    "duplicated_sample_names":false,
+                    "haveReads":false,
+                    "haveMetaData":true,
+                    "haveAsm":true
+                },
+                "metadata": {
+                    "created_at": current_time,
+                    "updated_at": current_time
+                },
+                "version": {
+                    "schema": ["v0_0_0"]
+                }
+            })
+            sample.set_category(sample_info)
+
+            #consider removing this and alter whats_my_species using kraken to also handle assemblies, and then incorporate that component
+            #but for now simply use the provided species from the metaData
+            species_detection = Category(value={
+                "name":"species_detection",
+                "component": {"id": ObjectId(), "assembly"},
+                "summary": {
+                    "name_classified_species_1":metadata["species"],
+                    "name_classified_species_2":metadata["species"],
+                    "detected_species":metadata["species"],
+                    "species":metadata["species"]
+                }
+                "report":{}
+                "metadata": {
+                    "created_at": current_time,
+                    "updated_at": current_time
+                },
+                "version": {
+                    "schema": ["v0_0_0"]
+                }
+            })
+            
+            sample.set_category(species_detection)
+
+            contigs = Category(value={
+                "name": "contigs",
+                "component": {"id": ObjectId(), "name": "assembly"},
                 "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
@@ -288,22 +393,34 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                     "gc_contents":gc_contents,
                     "date_added":date
                 },
-                "report": {}
             })
-            sample.set_category(assembly)
+            sample.set_category(contigs)
 
-        # consider if report {} is necessary
+            #sample_components
+            contigs_samplecomponent = Category(value={
+                "name": "contigs",
+                "component": {"id": ObjectId(), "name": "assembly"},
+                "summary": {
+                    "data": [
+                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
+                    ],
+                    "md5":fasta_md5,
+                    "num_contigs":contig_no,
+                    "total_length":contig_lengths,
+                    "gc_contents":gc_contents,
+                    "date_added":date
+                },
+                "report": {},
+                "metadata": {
+                    "created_at": current_time + "Z",
+                    "updated_at": current_time + "Z"
+                },
+                "version": {
+                    "schema": ["v0_0_0"]
+                }
+            })
+            samplecomponent.set_category(contigs)
 
-        #sample_metadata = json.loads(metadata.iloc[metadata[metadata["sample_name"] == sample_name].index[0]].to_json())
-        sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
-        sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
-        sample_info = Category(value={
-            "name": "sample_info",
-            "component": {"id": component["_id"], "name": component["name"]},
-            "summary": sample_metadata
-        })
-
-        sample.set_category(sample_info)
         try:
             sample.save()
             logging.info(f"Sample {sample_name} saved successfully.")
