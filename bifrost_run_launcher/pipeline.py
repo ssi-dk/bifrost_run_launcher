@@ -247,7 +247,7 @@ def get_sample_names(metadata: pd.DataFrame) -> List["str"]:
 def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
 
-def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
+def initialize_run(run: Run, samples: List[Sample],component: Component, input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", rename_column_file: str = None,
                    #regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$",
                    component_subset: str = "ccc,aaa,bbb"
@@ -305,6 +305,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 "summary": sample_metadata
             })
             sample.set_category(sample_info)
+            logging.info("sample_info for paired_reads category for sample collection set")
 
         
         elif run_mode == "ASM":
@@ -320,6 +321,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
             date = datetime.now().strftime('%Y-%m-%d')
             
+            print("INSIDE RUN MODE ASM FOR SET CATEORY")
             #equivalent to the collection called "paired_reads" under "samples" category
             assembly = Category(value={
                 "name": "assembly",
@@ -331,19 +333,20 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 },
             })
             sample.set_category(assembly)
+            logging.info("assembly category for sample collection set")
             
             sample_info = Category(value={
                 "name": "sample_info",
-                "component": {"id": ObjectId(), "name": component["name"]},
+                "component": {"id": component["_id"], "name": component["name"]},
                 "summary": {
                     "sample_name":fileprefix,
-                    "provided_species":metadata["provided_species"],
-                    "institution":metadata["institution"],
-                    "group":metadata["group"],
-                    "experiment_name":metadata["experiment_name"],
-                    "sequence_run_date":metadata["sequence_run_date"],
-                    "sofi_sequence_id":metadata["sofi_sequence_id"],
-                    "filenames":[metadata["filenames"]],
+                    "provided_species":metadata["provided_species"].iloc[0],
+                    "institution":metadata["institution"].iloc[0],
+                    "group":metadata["group"].iloc[0],
+                    "experiment_name":metadata["experiment_name"].iloc[0],
+                    "sequence_run_date":metadata["sequence_run_date"].iloc[0],
+                    "sofi_sequence_id":metadata["sofi_sequence_id"].iloc[0],
+                    "filenames":[metadata["filenames"].iloc[0]],
                     "temp_sample_name":fileprefix,
                     "changed_sample_names":False,
                     "duplicated_sample_names":False,
@@ -360,18 +363,19 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 }
             })
             sample.set_category(sample_info)
-
+            logging.info("sample info category for sample collection set")
+            
             #consider removing this and alter whats_my_species using kraken to also handle assemblies, and then incorporate that component
             #but for now simply use the provided species from the metaData
 
             species_detection = Category(value={
                 "name":"species_detection",
-                "component": {"id": ObjectId(),"name": "assembly"},
+                "component": {"id": component["_id"],"name": "assembly"},
                 "summary": {
-                    "name_classified_species_1":metadata["provided_species"],
-                    "name_classified_species_2":metadata["provided_species"],
-                    "detected_species":metadata["provided_species"],
-                    "species":metadata["provided_species"]
+                    "name_classified_species_1":metadata["provided_species"].iloc[0],
+                    "name_classified_species_2":metadata["provided_species"].iloc[0],
+                    "detected_species":metadata["provided_species"].iloc[0],
+                    "species":metadata["provided_species"].iloc[0]
                 },
                 "report":{},
                 "metadata": {
@@ -384,10 +388,11 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
             })
             
             sample.set_category(species_detection)
+            logging.info("species detection category for sample collection set")
 
             contigs = Category(value={
                 "name": "contigs",
-                "component": {"id": ObjectId(), "name": "assembly"},
+                "component": {"id":component["_id"], "name": "assembly"},
                 "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
@@ -400,11 +405,13 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                 },
             })
             sample.set_category(contigs)
+            logging.info("contigs for sample collection set")
 
-            #sample_components
+            """
+            sample_component = sample_components["campy_end2end_test_blabla_long_name___1910M50353_asm"]           
             contigs_samplecomponent = Category(value={
                 "name": "contigs",
-                "component": {"id": ObjectId(), "name": "assembly"},
+                "component": {"id": str(ObjectId()), "name": "assembly"},
                 "summary": {
                     "data": [
                         os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
@@ -424,7 +431,7 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
                     "schema": ["v0_0_0"]
                 }
             })
-            samplecomponent.set_category(contigs)
+            sample_component.set_category(contigs)"""
 
         try:
             sample.save()
@@ -577,20 +584,11 @@ def run_pipeline(args: object) -> None:
 
     for sample_reference in run.samples:
         sample = Sample.load(sample_reference)
+        print("sample reference ",sample_reference)
+        print("SAmple ",sample)
         if sample is not None:
             samples.append(sample)
     
-    #tmp to try sample_component
-    for sample in samples:
-        sample_ref = sample.to_reference()
-        component_ref = args.component.to_reference()
-        
-        tmp_sample_component = SampleComponent(sample_reference=sample_ref, component_reference=component_ref)
-        sample_component = SampleComponent.load(tmp_sample_component.to_reference())
-        
-        if sample_component is not None:
-            sample_components[sample.json["name"]] = sample_component
-
     # check if the run has an id and whether it exists in the db
     client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
     db = client.get_database()
@@ -599,10 +597,15 @@ def run_pipeline(args: object) -> None:
 
     if "_id" not in run.json or args.sample_subset is None:
         logging.info(f"Initializing new run: {run['name']}")
-        run, samples, run_mode = initialize_run(run=run, samples=samples, component=args.component, 
-                                      input_folder=args.reads_folder, run_metadata=args.run_metadata, 
-                                      rename_column_file=args.run_metadata_column_remap, 
-                                      component_subset=args.component_subset)
+        run, samples, run_mode = initialize_run(
+            run=run, 
+            samples=samples,
+            component=args.component, 
+            input_folder=args.reads_folder,
+            run_metadata=args.run_metadata, 
+            rename_column_file=args.run_metadata_column_remap, 
+            component_subset=args.component_subset)
+        
         logging.info(f"Run {run['name']} initialized successfully.")
     else:
         logging.info(f"Reprocessing selected samples for run: {run['name']}")
