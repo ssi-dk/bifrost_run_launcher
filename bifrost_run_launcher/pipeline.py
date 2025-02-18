@@ -394,9 +394,7 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
                 "name": "contigs",
                 "component": {"id":component["_id"], "name": "assembly"},
                 "summary": {
-                    "data": [
-                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
-                    ],
+                    "data": os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
                     "md5":fasta_md5,
                     "num_contigs":len(contig_lengths),
                     "total_length":contig_lengths,
@@ -406,33 +404,6 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
             })
             sample.set_category(contigs)
             logging.info("contigs for sample collection set")
-
-            """
-            sample_component = sample_components["campy_end2end_test_blabla_long_name___1910M50353_asm"]           
-            contigs_samplecomponent = Category(value={
-                "name": "contigs",
-                "component": {"id": str(ObjectId()), "name": "assembly"},
-                "summary": {
-                    "data": [
-                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
-                    ],
-                    "md5":fasta_md5,
-                    "num_contigs":len(contig_lengths),
-                    "total_length":contig_lengths,
-                    "gc_contents":gc_contents,
-                    "date_added":date
-                },
-                "report": {},
-                "metadata": {
-                    "created_at": current_time + "Z",
-                    "updated_at": current_time + "Z"
-                },
-                "version": {
-                    "schema": ["v0_0_0"]
-                }
-            })
-            sample_component.set_category(contigs)"""
-
         try:
             sample.save()
             logging.info(f"Sample {sample_name} saved successfully.")
@@ -559,28 +530,6 @@ def run_pipeline(args: object) -> None:
         run: Run = Run(name=args.run_name)
 
     samples: List[Sample] = []
-    sample_components: Dict[str,SampleComponent]={}
-
-    #print(run)
-    #print("---------")
-    #print(run_reference)
-    
-    #samplecomponent_ref = SampleComponentReference(name=SampleComponentReference.name_generator(sample.to_reference(), component.to_reference()))
-    #samplecomponent = SampleComponent.load(samplecomponent_ref)
-    #sample_ref = SampleReference(_id=config.get('sample_id', None), name=config.get('sample_name', None))
-    #sample:Sample = Sample.load(sample_ref) # schema 2.1
-    #samplecomponent_ref = SampleComponentReference(value=samplecomponent_ref_json)
-    #samplecomponent = SampleComponent.load(samplecomponent_ref)
-    #sample = Sample.load(samplecomponent.sample)
-
-    #samplecomponent_ref_json = samplecomponent.to_reference().json
-    
-    #run_reference.json
-    #sample_ref = SampleReference(name="Sample_001")
-    #comp_ref = ComponentReference(name="QC Analysis")
-    #sample_comp = SampleComponent(sample_reference=sample_ref, component_reference=comp_ref)
-    #print(sample_comp.json["name"])  # "Sample_001___QC Analysis"
-
 
     for sample_reference in run.samples:
         sample = Sample.load(sample_reference)
@@ -653,7 +602,7 @@ def run_pipeline(args: object) -> None:
     script_md5 = calculate_md5_of_file("run_script.sh")
     logging.info(f"MD5 checksum of run_script.sh: {script_md5}")
 
-    print("Done, {args.outdir}")
+    print("Done with output directory: {args.outdir}")
     print("Done, to run execute bash run_script.sh")
 
 # if __name__ == "__main__":
