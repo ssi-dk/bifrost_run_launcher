@@ -1,0 +1,19 @@
+name: run_launcher
+channels:
+  - default
+  - bioconda
+  - conda-forge
+dependencies:
+  - pytest
+  - pytest-cov
+  - pytest-profiling
+  - coverage
+  - pyyaml
+  - argh
+  - jsonschema>=v4.18.0a1
+  - watchdog
+  - wget
+  - pip
+  - pip:
+    - bifrostlib
+    - -e .
