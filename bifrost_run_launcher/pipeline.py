@@ -299,6 +299,12 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
             })
             sample.set_category(paired_reads)
             
+            sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
+            print("---------------------------------------------------")
+            print(sample_metadata)
+            print("---------------------------------------------------")
+            sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
+            
             sample_info = Category(value={
                 "name": "sample_info",
                 "component": {"id": component["_id"], "name": component["name"]},
