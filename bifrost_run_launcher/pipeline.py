@@ -201,7 +201,7 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         if rename_column_file is not None:
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
-                logging.info(f"Columns renamed using JSON mapping: {df.columns.tolist()}")
+                logging.info(f"Columns renamed using JSON mapping with rename file {rename_column_file} to {df.columns.tolist()}")
         else:
             expected_columns = ["sample_name", "species", "institution", "lab", "project", "date", "full_id", "filenames", "read_type", "purpose"]
             if len(df.columns) == len(expected_columns):
@@ -231,7 +231,7 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         df["haveReads"] = False
         df["haveAsm"] = False
         df["haveMetaData"] = True
-        
+               
         logging.info("Metadata formatted successfully.")
                 
         return df
@@ -266,7 +266,7 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
 
-    print(metadata.columns.tolist())
+    logging.info(f"formattet metadata with the following columns : {metadata.columns.tolist()}")
 
     for sample_name in sample_dict:
         logging.info(f"Processing sample: {sample_name} from species {metadata['provided_species']}")
@@ -300,9 +300,6 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
             sample.set_category(paired_reads)
             
             sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
-            print("---------------------------------------------------")
-            print(sample_metadata)
-            print("---------------------------------------------------")
             sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
             
             sample_info = Category(value={
@@ -327,7 +324,6 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
             current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
             date = datetime.now().strftime('%Y-%m-%d')
             
-            print("INSIDE RUN MODE ASM FOR SET CATEORY")
             #equivalent to the collection called "paired_reads" under "samples" category
             assembly = Category(value={
                 "name": "assembly",
@@ -368,6 +364,7 @@ def initialize_run(run: Run, samples: List[Sample],component: Component, input_f
                     "schema": ["v0_0_0"]
                 }
             })
+
             sample.set_category(sample_info)
             logging.info("sample info category for sample collection set")
             
@@ -560,7 +557,9 @@ def run_pipeline(args: object) -> None:
             run_metadata=args.run_metadata, 
             rename_column_file=args.run_metadata_column_remap, 
             component_subset=args.component_subset)
-        
+
+        logging.info(f"argument: \n \t {args.component} \n \t {args.reads_folder} \n \t {args.run_metadata} \n \t {args.run_metadata_column_remap} \n \t {args.component_subset}")
+       
         logging.info(f"Run {run['name']} initialized successfully.")
     else:
         logging.info(f"Reprocessing selected samples for run: {run['name']}")
