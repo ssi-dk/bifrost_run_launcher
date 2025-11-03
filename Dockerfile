@@ -13,9 +13,9 @@ ONBUILD COPY /components/${BIFROST_COMPONENT_NAME} /bifrost/components/${BIFROST
 ONBUILD COPY /lib/bifrostlib /bifrost/lib/bifrostlib
 ONBUILD WORKDIR /bifrost/components/${BIFROST_COMPONENT_NAME}/
 ONBUILD RUN \
-    pip install -r requirements.txt; \
-    pip install --no-cache -e file:///bifrost/lib/bifrostlib; \
-    pip install --no-cache -e file:///bifrost/components/${BIFROST_COMPONENT_NAME}/
+    conda env create -n run_launcher -f environment.yml && \
+    conda run -n run_launcher pip install -e /bifrost/lib/bifrostlib && \
+    conda run -n run_launcher pip install -e /bifrost/components/${BIFROST_COMPONENT_NAME}
 
 #---------------------------------------------------------------------------------------------------
 # Base for production environment
@@ -25,8 +25,9 @@ ONBUILD ARG BIFROST_COMPONENT_NAME
 ONBUILD WORKDIR /bifrost/components/${BIFROST_COMPONENT_NAME}
 ONBUILD COPY ./ ./
 ONBUILD RUN \
-    pip install -r requirements.txt; \
-    pip install file:///bifrost/components/${BIFROST_COMPONENT_NAME}/
+    conda env create -n run_launcher -f environment.yml && \
+    conda run -n run_launcher pip install file:///bifrost/components/${BIFROST_COMPONENT_NAME} && \
+    conda clean -ay
 
 #---------------------------------------------------------------------------------------------------
 # Base for test environment (prod with tests)
@@ -37,8 +38,9 @@ ONBUILD ARG BIFROST_COMPONENT_NAME
 ONBUILD WORKDIR /bifrost/components/${BIFROST_COMPONENT_NAME}
 ONBUILD COPY ./ ./
 ONBUILD RUN \
-    pip install -r requirements.txt \
-    pip install file:///bifrost/components/${BIFROST_COMPONENT_NAME}/
+    conda env create -n run_launcher -f environment.yml && \
+    conda run -n run_launcher pip install file:///bifrost/components/${BIFROST_COMPONENT_NAME} && \
+    conda clean -ay
 
 #---------------------------------------------------------------------------------------------------
 # Details
@@ -53,19 +55,10 @@ LABEL \
     environment="${BUILD_ENV}" \
     maintainer="${MAINTAINER}"
 
-#---------------------------------------------------------------------------------------------------
-# Additional programs for all environments
-#---------------------------------------------------------------------------------------------------
-# N/A
+#ensure the python3 use the conda environment created above
+ENV PATH="/opt/conda/envs/run_launcher/bin:${PATH}"
 
-#---------------------------------------------------------------------------------------------------
-# Additional resources
-#---------------------------------------------------------------------------------------------------
-# N/A
-
-#---------------------------------------------------------------------------------------------------
-# Run and entry commands
-#---------------------------------------------------------------------------------------------------
 WORKDIR /bifrost/components/${BIFROST_COMPONENT_NAME}
 ENTRYPOINT ["python3", "-m", "bifrost_run_launcher"]
-CMD ["python3", "-m", "bifrost_run_launcher", "--help"]
+CMD ["--help"]
+
