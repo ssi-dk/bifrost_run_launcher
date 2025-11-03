@@ -49,6 +49,8 @@ def format_metadata(run_metadata: TextIO, rename_column_file: TextIO = None) -> 
         if rename_column_file is not None:
             with open(rename_column_file, "r") as rename_file:
                 df = df.rename(columns=json.load(rename_file))
+        #remove rename_file and replace sample_name with SampleID
+
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
         samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
@@ -81,10 +83,15 @@ def get_file_pairs(metadata: pandas.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
 
 
-def initialize_run(run: Run, samples: List[Sample], component: Component, input_folder: str = ".",
-                   run_metadata: str = "run_metadata.txt", run_type: str = None, rename_column_file: str = None,
+def initialize_run(run: Run, 
+                   samples: List[Sample], 
+                   component: Component, 
+                   input_folder: str = ".",
+                   run_metadata: str = "run_metadata.txt", 
+                   #run_type: str = None, 
+                   rename_column_file: str = None,
                    #regex_pattern: str = r"^(?P<sample_name>[a-zA-Z0-9_\-]+?)(_S[0-9]+)?(_L[0-9]+)?_(R?)(?P<paired_read_number>[1|2])(_[0-9]+)?(\.fastq\.gz)$",
-                   component_subset: str = "ccc,aaa,bbb"
+                   #component_subset: str = "ccc,aaa,bbb"
                    ) -> Tuple[Run, List[Sample]]:
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
@@ -94,8 +101,13 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
     for sample_name in sample_dict:
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
         metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
+        #metadata.loc[metadata["sample_name"] == sample_name, "haveAsm"] = True
+
         sample = Sample(name=run.sample_name_generator(sample_name))
-        sample["run"] = run_reference
+        
+        # CONSIDER REMOVING ALL RUN
+        sample["run"] = run_reference 
+
         sample["display_name"] = sample_name
         sample_exists = False
         for i in range(len(samples)):
@@ -128,14 +140,17 @@ def initialize_run(run: Run, samples: List[Sample], component: Component, input_
         except DuplicateKeyError:
             print(f"Sample {sample_name} exists - reusing")
         sample_list.append(sample)
-    run['component_subset'] = component_subset # this might just be for annotating in the db
-    run["type"] = run_type
+    
+    #run['component_subset'] = component_subset # this might just be for annotating in the db
+    #run["type"] = run_type
+    
     run["path"] = os.getcwd()
     run["issues"] = {
         "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
         "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
         "unused_files": unused_files,
         "samples_without_reads": list(metadata[metadata['haveReads'] == False]['sample_name']),
+        "samples_without_assembly": list(metadata[metadata['haveAsm'] == False]['sample_name']),
         "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
     }
     run.samples = [i.to_reference() for i in sample_list]
@@ -208,6 +223,7 @@ def run_pipeline(args: object) -> None:
 
     run_reference = RunReference(_id = args.run_id, name = args.run_name)
     print(f"{run_reference.json = }")
+    """
     if args.re_run:
         run: Run = Run.load(run_reference)
         if run is None and args.run_id is not None: # mistyped id
@@ -216,6 +232,8 @@ def run_pipeline(args: object) -> None:
             run: Run = Run(name=args.run_name)
     else:
         run: Run = Run(name=args.run_name)
+    """
+    run: Run = Run(name=args.run_name)
     samples: List[Sample] = []
     # Add existing samples from run.samples if they exist
     for sample_reference in run.samples:
@@ -227,6 +245,17 @@ def run_pipeline(args: object) -> None:
     db = client.get_database()
     runs = db.runs
     run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
+    
+    run, samples = initialize_run(run=run, 
+                                  samples=samples,
+                                   component=args.component, 
+                                   input_folder=args.reads_folder, 
+                                   run_metadata=args.run_metadata, 
+                                   #run_type=args.run_type, 
+                                   rename_column_file=args.run_metadata_column_remap, 
+                                   #component_subset=args.component_subset)
+
+"""
     if "_id" not in run.json or args.sample_subset is None:
         if args.debug:
             print(f"{run = }\n{samples = }")
@@ -247,6 +276,7 @@ def run_pipeline(args: object) -> None:
                     if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
                         sample_inds_to_keep.append(i)
             samples = [samples[i] for i in sample_inds_to_keep]
+"""
 
     if args.debug:
         print("run")

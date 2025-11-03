@@ -97,11 +97,13 @@ def parse_and_run(args: List[str]) -> None:
         action='store_true',
         help='Show arg values'
     )
+    ###sample_info -> summary -< output_dir 
     parser.add_argument(
         '-out', '--outdir',
         default=os.environ.get('BIFROST_RUN_DIR', os.getcwd()),
         help='Output directory'
     )
+    ### INSERT ASSEMBLY SCRIPT OPTION
     parser.add_argument(
         '-pre', '--pre_script',
         help='Pre script template run before sample script',
@@ -126,44 +128,52 @@ def parse_and_run(args: List[str]) -> None:
         default=os.path.join(os.environ.get('BIFROST_RUN_DIR', os.getcwd()), COMPONENT['options']['default_meta']),
         type=types.file
     )
+    ### read_folder -> input_folder store int sample_info -> summary -< input_dir 
     parser.add_argument(
         '-reads', '--reads_folder',
         help='Run metadata tsv',
         default=os.path.join(os.environ.get('BIFROST_RUN_DIR', os.getcwd()), COMPONENT['options']['default_reads']),
         type=types.directory
     )
+    ### REMOVE
     parser.add_argument(
         '-name', '--run_name',
         help='Run name, if not provided it will default to current folder name',
         default=None
     )
+    ### REMOVE
     parser.add_argument(
         '-type', '--run_type',
         default="run",
         help='Run type for metadata organization'
     )
+    ## REMOVE
     parser.add_argument(
         '-colmap', '--run_metadata_column_remap',
         help='Remaps metadata tsv columns to bifrost values',
         default=None if not os.path.isfile(os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_colmap'])) else os.path.join(os.environ.get('BIFROST_CONFIG_DIR', os.getcwd()), COMPONENT['options']['default_colmap']),
         type=types.file
     )
+    ### REMOVE
     parser.add_argument(
         '-id', '--run_id',
         default=None,
         help='For re-running a run'
     )
+    ### REMOVE
     parser.add_argument(
         '-rerun', '--re_run',
         action="store_true",
         help='For re-running a run'
     )
+    ### REMOVE
     parser.add_argument( # get a way to replace the info in per script in pipeline.py
        '-co', '--component_subset',
        default="bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_assemblatron_v2_2_16,bifrost_ssi_stamper_v2_2_11,bifrost_cge_mlst_v2_2_6__210314",
        #default="asdf",
        help='Component subset to run on samples. Use a comma for separation'
     )
+    ### REMOVE
     parser.add_argument( # get a way to replace the info in per script in pipeline.py
        '-s', '--sample_subset',
        #default="bifrost_min_read_check_v2_2_8,bifrost_whats_my_species_v2_2_11__171019,bifrost_assemblatron_v2_2_16,bifrost_ssi_stamper_v2_2_11,bifrost_cge_mlst_v2_2_6__210314",

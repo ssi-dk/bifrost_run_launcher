@@ -6,15 +6,7 @@ name: run_launcher__v2.3.0
 version:
   schema: ["v2_1_0"]
   code: v2.3.0
-note: >
-  Currently run components aren't set up properly (probably want to call them collection components)
-  values here are not being used properly. I think the idea for run components is that you don't 
-  compare run components against one another. They are contextual to themselves. Thus options here
-  can be flexible compared to sample components which are designed to be compared to one another.
-  Maybe this just needs to be named as two different types. One for comparison and one which is not 
-  and in the case where its not meant to be compared the interesting thing about the component 
-  (pipeline) as in this case is that it sets things up for others. Not that it creates an 
-  interesting result on it's own
+
 #---------------------------------------------------------------------------------------------------
 
 #-Details-------------------------------------------------------------------------------------------
@@ -27,15 +19,12 @@ details:
 #-Install-------------------------------------------------------------------------------------------
 install:
   path: # Set by install program
-  dockerfile: docker://ssidk/bifrost_run_launcher
+  #dockerfile: docker://ssidk/bifrost_run_launcher
 # None
-#---------------------------------------------------------------------------------------------------
-
-#-Category info-------------------------------------------------------------------------------------
-category: []
-#---------------------------------------------------------------------------------------------------
 
 #-Options-------------------------------------------------------------------------------------------
+
+"""
 options:
   default_pre: "pre.sh"
   default_per: "per_sample.sh"
@@ -43,32 +32,4 @@ options:
   default_meta: "run_metadata.tsv"
   default_reads: "samples"
   default_colmap: "rename.json"
-# ENV Variables
-# BIFROST_RUN_DIR - location of reads, metadata, output
-# BIFROST_CONFIG_DIR - location of pre, per, post and colmap
-#---------------------------------------------------------------------------------------------------
-
-#-Required resource files---------------------------------------------------------------------------
-resources:
-# None
-#---------------------------------------------------------------------------------------------------
-
-#-Requirements to run component---------------------------------------------------------------------
-requirements:
-# Non-DB file requirements
-#  files:
-#    -samples_folder
-#    -"run_metadata.tsv"
-#    -"pre_script.sh"
-#    -"per_sample_script.sh"
-#    -"post_script.sh"
-#---------------------------------------------------------------------------------------------------
-
-#-DB Value changes (excluding component output)-----------------------------------------------------
-db_values_changes:
-  files: []
-  run:
-    # new run object
-  sample:
-    # a new sample object for each one in the run
-#---------------------------------------------------------------------------------------------------
+"""
