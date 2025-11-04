@@ -69,14 +69,14 @@ def parse_directory(directory: str,
                     run_metadata_filename: str) -> Tuple[Dict, List[str], str]:
     
     all_files: Set[str] = set(os.listdir(directory))
-    unused_files: Set[str] = all_files
+    unused_files: Set[str] = set(all_files)
     sample_dict = {}
         
     bifrost_mode = None #Either SEQ or ASM
     
     #define extensions for what is assumed to be unique to sequence reads and assemblies to differentiate in metadata
     seq_reads_ext = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
-    asm_ext = {".fa", ".fasta", ".fa.gz", ".fasta.gz"}
+    asm_ext = {".fa", ".fasta", ".fa.gz", ".fasta.gz", ".fas", ".fas.gz", ".fna", ".fna.gz"}
 
     for sample_files in file_name_list:
         # Downstream it is assumed that there are exactly two sequence files, 
@@ -302,10 +302,11 @@ def initialize_run(run: Run,
         sample_list.append(sample)
 
     run['component_subset'] = component_subset # this might just be for annotating in the db
-    run["type"] = run_type
+    #run["type"] = run_type
     run["path"] = os.getcwd()
 
     if run_mode == "SEQ":
+        run["type"] = run_type
         run["issues"] = {
             "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
             "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
@@ -314,6 +315,7 @@ def initialize_run(run: Run,
             "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
         }
     elif run_mode == "ASM":
+        run["type"] = "assembly"
         run["issues"] = {
             "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
             "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),

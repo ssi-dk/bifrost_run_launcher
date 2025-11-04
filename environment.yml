@@ -16,4 +16,5 @@ dependencies:
   - pip
   - pip:
     - bifrostlib
+    - biopython
     - -e .
