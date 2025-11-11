@@ -298,7 +298,7 @@ def initialize_run(run: Run,
                     "schema": ["v0_0_0"]
                 }
             })
-            sample.set_category(sample_info)
+            sample.set_category(species_detection)
             
             # contigs category with the stats we just computed
             contigs = Category(value={
