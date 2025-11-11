@@ -278,6 +278,27 @@ def initialize_run(run: Run,
             })
             sample.set_category(sample_info)
 
+            species_detection = Category(value={
+                "name": "species_detection",
+                "component": {"id": component["_id"], "name": "provided_metadata_species"},
+                "summary": {
+                    "percent_unclassified":0.0,
+                    "percent_classified_species_1":1.0,
+                    "name_classified_species_1":metadata["provided_species"].iloc[0],
+                    "percent_classified_species_2":0.0,
+                    "name_classified_species_2":metadata["provided_species"].iloc[0],
+                    "detected_species":metadata["provided_species"].iloc[0],
+                    "species":metadata["provided_species"].iloc[0],
+                },
+                "metadata": {
+                    "created_at": creation_date,
+                    "updated_at": timestamp
+                },
+                "version": {
+                    "schema": ["v0_0_0"]
+                }
+            })
+            sample.set_category(sample_info)
             
             # contigs category with the stats we just computed
             contigs = Category(value={
