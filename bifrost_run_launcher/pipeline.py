@@ -191,7 +191,6 @@ def initialize_run(run: Run,
 
     for sample_name in sample_dict:
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
-        metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
 
         sample = Sample(name=run.sample_name_generator(sample_name))
         sample["run"] = run_reference
@@ -205,6 +204,8 @@ def initialize_run(run: Run,
                 sample = samples[i]
         
         if run_mode == "SEQ":
+            metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
+
             #samples collection 
             paired_reads = Category(value={
                 "name": "paired_reads",
@@ -229,11 +230,7 @@ def initialize_run(run: Run,
             sample.set_category(sample_info)
             print(f"accurately set the categories for the sample {sample_name} with run mode {run_mode}")
         elif run_mode == "ASM":
-            #insert basic information into database using bifrostlib to mimic information obtained for NGS sequence data when running additional components
-            fasta_file_path = os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
-            fasta_filename = os.path.basename(fasta_file_path)
-            fasta_fileprefix = os.path.splitext(fasta_filename)[0]
-            total_len, num_contigs, n50, mean_gc = save_contigs_data(fasta_file_path)
+            metadata.loc[metadata["sample_name"] == sample_name, "haveAsm"] = True
 
             #equivalent to the collection called "paired_reads" under "samples" category
             assembly = Category(value={
@@ -247,48 +244,39 @@ def initialize_run(run: Run,
             })
             sample.set_category(assembly)
 
+            sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
+            sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
+
+            sample_info = Category(value={
+                "name": "sample_info",
+                "component": {"id": component["_id"], "name": component["name"]},
+                "summary": sample_metadata
+            })
+            sample.set_category(sample_info)
+
+            #insert basic information into database using bifrostlib to mimic information obtained for NGS sequence data when running additional components
+            fasta_file_path = os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
+            total_len, num_contigs, n50, mean_gc = save_contigs_data(fasta_file_path)
+
             # some of these info should perhaps be changed in the future to accomodate the information extracted for the sequencing reads
             creation_timestamp = os.path.getctime(fasta_file_path)
             creation_date = datetime.fromtimestamp(creation_timestamp).strftime("%Y-%m-%d")
             timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
-            sample_info = Category(value={
-                "name": "sample_info",
-                "component": {"id": component["_id"], "name": component["name"]},
-                "summary": {
-                    "sample_name":fasta_fileprefix,
-                    "provided_species":metadata["provided_species"].iloc[0],
-                    "institution":metadata["institution"].iloc[0],
-                    "group":metadata["group"].iloc[0],
-                    "experiment_name":metadata["experiment_name"].iloc[0],
-                    "sequence_run_date":metadata["sequence_run_date"].iloc[0],
-                    "sofi_sequence_id":metadata["sofi_sequence_id"].iloc[0],
-                    "filenames":[metadata["filenames"].iloc[0]],
-                    "haveReads":False,
-                    "haveMetaData":True,
-                    "haveAsm":True
-                },
-                "metadata": {
-                    "created_at": creation_date,
-                    "updated_at": timestamp
-                },
-                "version": {
-                    "schema": ["v0_0_0"]
-                }
-            })
-            sample.set_category(sample_info)
+            row = metadata.loc[metadata["sample_name"] == sample_name].iloc[0]
+            species = row["provided_species"]
 
             species_detection = Category(value={
                 "name": "species_detection",
                 "component": {"id": component["_id"], "name": "provided_metadata_species"},
                 "summary": {
-                    "percent_unclassified":0.0,
-                    "percent_classified_species_1":1.0,
-                    "name_classified_species_1":metadata["provided_species"].iloc[0],
-                    "percent_classified_species_2":0.0,
-                    "name_classified_species_2":metadata["provided_species"].iloc[0],
-                    "detected_species":metadata["provided_species"].iloc[0],
-                    "species":metadata["provided_species"].iloc[0],
+                    "percent_unclassified": 0.0,
+                    "percent_classified_species_1": 1.0,
+                    "name_classified_species_1": species,
+                    "percent_classified_species_2": 0.0,
+                    "name_classified_species_2": species,
+                    "detected_species": species,
+                    "species": species,
                 },
                 "metadata": {
                     "created_at": creation_date,
