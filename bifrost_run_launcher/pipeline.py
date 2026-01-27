@@ -16,10 +16,11 @@ from bifrostlib.datahandling import Category
 from bifrostlib.datahandling import Component
 import pprint
 import pymongo
-from typing import List, Set, Dict, TextIO, Pattern, Tuple
+from typing import List, Set, Dict, TextIO, Pattern, Tuple,Optional
 from pymongo.errors import DuplicateKeyError
 from Bio import SeqIO
 from datetime import datetime
+import gzip
 
 os.umask(0o002)
 
@@ -136,7 +137,9 @@ def format_metadata(run_metadata: TextIO,
         samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
         idx_to_drop = samples_no_index.union(samples_no_files_index)
         missing_files = ", ".join([df["sample_name"].iloc[i] for i in samples_no_files_index])
-        print(f"samples {missing_files} missing files.")
+        
+        if len(missing_files) > 0:
+            print(f"samples {missing_files} missing files.")
         df = df.drop(idx_to_drop)
         
         # Save original `sample_name` before cleaning
@@ -170,7 +173,28 @@ def get_sample_names(metadata: pd.DataFrame) -> List["str"]:
 
 def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
+  
+def count_fastq_reads(file_path: str, minreads: int = 10000) -> int:
+    """
+    Count FASTQ records in file_path. If minreads is set, stop early once that
+    many reads are seen (fast for min-read checks). Works for .gz too.
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"FASTQ file not found at: {file_path}")
 
+    gzfile_opener = gzip.open if file_path.endswith(".gz") else open
+    read_no = 0
+    try:
+        with gzfile_opener(file_path, "rt") as handle:
+            for record in SeqIO.parse(handle, "fastq"):
+                #count number of records, which contains reads
+                read_no += 1
+                if minreads is not None and read_no >= minreads:
+                    break
+    except Exception as e:
+        raise ValueError(f"Failed parsing FASTQ {file_path}: {e}") from e
+
+    return read_no
 
 def initialize_run(run: Run, 
                    samples: List[Sample], 
@@ -205,15 +229,31 @@ def initialize_run(run: Run,
         
         if run_mode == "SEQ":
             metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
+            
+            MIN_READS = 10000
 
+            #checks number of minimum reads
+            read1, read2 = sample_dict[sample_name][0], sample_dict[sample_name][1]
+            read1_path = os.path.abspath(os.path.join(input_folder, read1))
+            read2_path = os.path.abspath(os.path.join(input_folder, read2))
+
+            read1_count = count_fastq_reads(read1_path, minreads=MIN_READS)
+            read2_count = count_fastq_reads(read2_path, minreads=MIN_READS)
+            
+            if read1_count < MIN_READS or read2_count < MIN_READS:
+                raise ValueError(
+                    f"Aborting initialization: sample '{sample_name}' has too few reads "
+                    f"(min {MIN_READS}). {os.path.basename(read1_path)}={read1_count}, {os.path.basename(read2_path)}={read2_count}"
+                )
+            
             #samples collection 
             paired_reads = Category(value={
                 "name": "paired_reads",
                 "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
                 "summary": {
                         "data": [
-                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0])),
-                            os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][1]))
+                            os.path.abspath(read1_path),
+                            os.path.abspath(read2_path)
                         ]
                 }
             })
