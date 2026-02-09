@@ -24,46 +24,6 @@ import gzip
 
 os.umask(0o002)
 
-def calculate_n50(lengths: List[int]) -> int:
-    if not lengths:
-        return 0 
-    lengths_sorted = sorted(lengths, reverse=True) #sort contigs longest>shortest
-    
-    n50 = 0
-    half = sum(lengths_sorted) / 2
-    
-    for Length in lengths_sorted:
-        n50  += Length
-        if n50  >= half:
-            return Length
-    return 0
-
-def save_contigs_data(file_path: str) -> Tuple[int, int, int, float]:
-    if not os.path.exists(file_path):
-        print(f"FASTA file not found at: {file_path}")
-        raise FileNotFoundError(f"FASTA file not found at: {file_path}")
-    
-    contig_lengths: List[int] = []
-    gc_contents: List[float] = []
-    
-    with open(file_path, 'r') as fasta_file:
-        for record in SeqIO.parse(fasta_file, "fasta"):
-            contig_seq = str(record.seq).replace("\n", "")  # Sequence without newlines
-            contig_length = len(contig_seq)
-            gc_content = round((sum(contig_seq.count(x) for x in "GCgc") / contig_length) * 100, 2)
-            contig_lengths.append(contig_length)
-            gc_contents.append(gc_content)
-
-    print(f"Contigs: {len(contig_lengths)}, Avg Length: {sum(contig_lengths)/len(contig_lengths) if contig_lengths else 0:.2f}")
-
-    # aggregate stats
-    total_len = sum(contig_lengths)
-    num_contigs = len(contig_lengths)
-    n50 = calculate_n50(contig_lengths)
-    mean_gc = round(sum(gc_contents) / num_contigs, 2) if num_contigs else 0.0
-    
-    return total_len,num_contigs,n50,mean_gc
-
 def parse_directory(directory: str, 
                     file_name_list: List[Tuple[str,str]], 
                     run_metadata: pd.DataFrame, 
@@ -173,28 +133,6 @@ def get_sample_names(metadata: pd.DataFrame) -> List["str"]:
 
 def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
-  
-def count_fastq_reads(file_path: str, minreads: int = 10000) -> int:
-    """
-    Count FASTQ records in file_path. If minreads is set, stop early once that
-    many reads are seen (fast for min-read checks). Works for .gz too.
-    """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"FASTQ file not found at: {file_path}")
-
-    gzfile_opener = gzip.open if file_path.endswith(".gz") else open
-    read_no = 0
-    try:
-        with gzfile_opener(file_path, "rt") as handle:
-            for record in SeqIO.parse(handle, "fastq"):
-                #count number of records, which contains reads
-                read_no += 1
-                if minreads is not None and read_no >= minreads:
-                    break
-    except Exception as e:
-        raise ValueError(f"Failed parsing FASTQ {file_path}: {e}") from e
-
-    return read_no
 
 def initialize_run(run: Run, 
                    samples: List[Sample], 
@@ -230,26 +168,16 @@ def initialize_run(run: Run,
         if run_mode == "SEQ":
             metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
             
-            MIN_READS = 10000
-
             #checks number of minimum reads
             read1, read2 = sample_dict[sample_name][0], sample_dict[sample_name][1]
             read1_path = os.path.abspath(os.path.join(input_folder, read1))
             read2_path = os.path.abspath(os.path.join(input_folder, read2))
-
-            read1_count = count_fastq_reads(read1_path, minreads=MIN_READS)
-            read2_count = count_fastq_reads(read2_path, minreads=MIN_READS)
-            
-            if read1_count < MIN_READS or read2_count < MIN_READS:
-                raise ValueError(
-                    f"Aborting initialization: sample '{sample_name}' has too few reads "
-                    f"(min {MIN_READS}). {os.path.basename(read1_path)}={read1_count}, {os.path.basename(read2_path)}={read2_count}"
-                )
             
             #samples collection 
             paired_reads = Category(value={
                 "name": "paired_reads",
-                "component": {"id": component["_id"], "name": component["name"]}, # giving paired reads component id?
+                "component": {"id": component["_id"], 
+                              "name": component["name"]}, # giving paired reads component id?
                 "summary": {
                         "data": [
                             os.path.abspath(read1_path),
@@ -264,7 +192,8 @@ def initialize_run(run: Run,
 
             sample_info = Category(value={
                 "name": "sample_info",
-                "component": {"id": component["_id"], "name": component["name"]},
+                "component": {"id": component["_id"], 
+                              "name": component["name"]},
                 "summary": sample_metadata
             })
             sample.set_category(sample_info)
@@ -273,30 +202,31 @@ def initialize_run(run: Run,
             metadata.loc[metadata["sample_name"] == sample_name, "haveAsm"] = True
 
             #equivalent to the collection called "paired_reads" under "samples" category
-            assembly = Category(value={
-                "name": "assembly",
-                "component": {"id": component["_id"], "name": component["name"]},
+            event_fasta = sample_dict[sample_name][0]
+            fasta_file_path = os.path.abspath(os.path.join(input_folder,event_fasta))
+
+            contigs = Category(value={
+                "name": "contigs",
+                "component": {"id": component["_id"], 
+                              "name": component["name"]},
                 "summary": {
                     "data": [
-                        os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
+                        os.path.abspath(fasta_file_path)
                     ],
                 },
             })
-            sample.set_category(assembly)
+            sample.set_category(contigs)
 
             sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
             sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
 
             sample_info = Category(value={
                 "name": "sample_info",
-                "component": {"id": component["_id"], "name": component["name"]},
+                "component": {"id": component["_id"], 
+                              "name": component["name"]},
                 "summary": sample_metadata
             })
             sample.set_category(sample_info)
-
-            #insert basic information into database using bifrostlib to mimic information obtained for NGS sequence data when running additional components
-            fasta_file_path = os.path.abspath(os.path.join(input_folder, sample_dict[sample_name][0]))
-            total_len, num_contigs, n50, mean_gc = save_contigs_data(fasta_file_path)
 
             # some of these info should perhaps be changed in the future to accomodate the information extracted for the sequencing reads
             creation_timestamp = os.path.getctime(fasta_file_path)
@@ -308,7 +238,8 @@ def initialize_run(run: Run,
 
             species_detection = Category(value={
                 "name": "species_detection",
-                "component": {"id": component["_id"], "name": "provided_metadata_species"},
+                "component": {"id": component["_id"], 
+                              "name": "provided_metadata_species"},
                 "summary": {
                     "percent_unclassified": 0.0,
                     "percent_classified_species_1": 1.0,
@@ -327,20 +258,7 @@ def initialize_run(run: Run,
                 }
             })
             sample.set_category(species_detection)
-            
-            # contigs category with the stats we just computed
-            contigs = Category(value={
-                "name": "contigs",
-                "component": {"id": component["_id"], "name": "assembly"},
-                "summary": {
-                    "data": fasta_file_path,
-                    "num_contigs": num_contigs,
-                    "total_length": total_len,
-                    "n50": n50,
-                    "gc_mean": mean_gc,
-                },
-            })
-            sample.set_category(contigs)
+        
         try:
             sample.save()
         except DuplicateKeyError:
@@ -361,12 +279,12 @@ def initialize_run(run: Run,
             "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
         }
     elif run_mode == "ASM":
-        run["type"] = "assembly"
+        run["type"] = "contigs"
         run["issues"] = {
             "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
             "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
             "unused_files": unused_files,
-            "samples_without_assembly": list(metadata[metadata['haveAsm'] == False]['sample_name']),
+            "samples_without_contigs": list(metadata[metadata['haveAsm'] == False]['sample_name']),
             "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
         }
 
