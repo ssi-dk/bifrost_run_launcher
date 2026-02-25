@@ -210,9 +210,7 @@ def initialize_run(run: Run,
                 "component": {"id": component["_id"], 
                               "name": component["name"]},
                 "summary": {
-                    "data": [
-                        os.path.abspath(fasta_file_path)
-                    ],
+                    "data":os.path.abspath(fasta_file_path)
                 },
             })
             sample.set_category(events)
