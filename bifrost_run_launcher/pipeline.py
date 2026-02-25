@@ -205,8 +205,8 @@ def initialize_run(run: Run,
             event_fasta = sample_dict[sample_name][0]
             fasta_file_path = os.path.abspath(os.path.join(input_folder,event_fasta))
 
-            contigs = Category(value={
-                "name": "contigs",
+            events = Category(value={
+                "name": "events",
                 "component": {"id": component["_id"], 
                               "name": component["name"]},
                 "summary": {
@@ -215,7 +215,7 @@ def initialize_run(run: Run,
                     ],
                 },
             })
-            sample.set_category(contigs)
+            sample.set_category(events)
 
             sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
             sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
@@ -241,12 +241,6 @@ def initialize_run(run: Run,
                 "component": {"id": component["_id"], 
                               "name": "provided_metadata_species"},
                 "summary": {
-                    "percent_unclassified": 0.0,
-                    "percent_classified_species_1": 1.0,
-                    "name_classified_species_1": species,
-                    "percent_classified_species_2": 0.0,
-                    "name_classified_species_2": species,
-                    "detected_species": species,
                     "species": species,
                 },
                 "metadata": {
@@ -279,7 +273,7 @@ def initialize_run(run: Run,
             "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
         }
     elif run_mode == "ASM":
-        run["type"] = "contigs"
+        run["type"] = "events"
         run["issues"] = {
             "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
             "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
