@@ -1,8 +1,8 @@
-name: run_launcher
+name: bifrost_dev_run_launcher_v2.3.0
 channels:
-  - default
-  - bioconda
   - conda-forge
+  - bioconda
+  - defaults
 dependencies:
   - python>=3.13
   - pytest
