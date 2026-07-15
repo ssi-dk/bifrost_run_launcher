@@ -12,6 +12,7 @@ import sys
 from bifrostlib.datahandling import RunReference
 from bifrostlib.datahandling import Run
 from bifrostlib.datahandling import Sample
+from bifrostlib.datahandling import SampleReference
 from bifrostlib.datahandling import Category
 from bifrostlib.datahandling import Component
 import pprint
@@ -128,7 +129,6 @@ def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
     return list(set(metadata["filenames"].tolist()))
 
 def initialize_run(run: Run, 
-                   samples: List[Sample], 
                    component: Component, 
                    input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", 
@@ -136,14 +136,14 @@ def initialize_run(run: Run,
                    run_mode: str = "SEQ",
                    rename_column_file: str = None,
                    component_subset: str = "ccc,aaa,bbb"
-                   ) -> Tuple[Run, List[Sample], str]:
+                   ) -> Tuple[Run, List[SampleReference]]:
     
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
     sample_dict, unused_files = parse_directory(input_folder, run_mode, file_names_in_metadata, metadata, run_metadata)
 
     run_reference = run.to_reference()
-    sample_list: List(Sample) = []
+    sample_list: List[SampleReference] = []
 
     for sample_name in sample_dict:
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
@@ -160,7 +160,7 @@ def initialize_run(run: Run,
         if run_mode == "SEQ":
             metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
             
-            #checks number of minimum reads
+            # paired reads needed
             read1, read2 = sample_dict[sample_name][0], sample_dict[sample_name][1]
             read1_path = os.path.abspath(os.path.join(input_folder, read1))
             read2_path = os.path.abspath(os.path.join(input_folder, read2))
@@ -172,23 +172,12 @@ def initialize_run(run: Run,
                               "name": component["name"]}, # giving paired reads component id?
                 "summary": {
                         "data": [
-                            os.path.abspath(read1_path),
-                            os.path.abspath(read2_path)
+                            read1_path,
+                            read2_path
                         ]
                 }
             })
             sample.set_category(paired_reads)
-
-            sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
-            sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
-
-            sample_info = Category(value={
-                "name": "sample_info",
-                "component": {"id": component["_id"], 
-                              "name": component["name"]},
-                "summary": sample_metadata
-            })
-            sample.set_category(sample_info)
             print(f"accurately set the categories for the sample {sample_name} with run mode {run_mode}")
         elif run_mode == "ASM":
             metadata.loc[metadata["sample_name"] == sample_name, "haveAsm"] = True
@@ -202,21 +191,10 @@ def initialize_run(run: Run,
                 "component": {"id": component["_id"], 
                               "name": component["name"]},
                 "summary": {
-                    "data":os.path.abspath(fasta_file_path)
+                    "data": fasta_file_path
                 },
             })
             sample.set_category(events)
-
-            sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
-            sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
-
-            sample_info = Category(value={
-                "name": "sample_info",
-                "component": {"id": component["_id"], 
-                              "name": component["name"]},
-                "summary": sample_metadata
-            })
-            sample.set_category(sample_info)
 
             # some of these info should perhaps be changed in the future to accomodate the information extracted for the sequencing reads
             creation_timestamp = os.path.getctime(fasta_file_path)
@@ -242,19 +220,40 @@ def initialize_run(run: Run,
                 }
             })
             sample.set_category(species_detection)
+        else:
+            pass
         
+        # sample_info is common to both modes
+        sample_metadata = metadata.loc[metadata['sample_name'] == sample_name].to_dict(orient = 'records')[0] # more stable to missing fields
+        sample_metadata['filenames'] = list(sample_metadata['filenames']) # changing from tuple to list to match original
+
+        sample_info = Category(value={
+            "name": "sample_info",
+            "component": {"id": component["_id"], 
+                            "name": component["name"]},
+            "summary": sample_metadata
+        })
+        sample.set_category(sample_info)
+
         try:
             sample.save()
         except DuplicateKeyError:
             print(f"Sample {sample_name} exists - reusing")
-        sample_list.append(sample)
+        sample_list.append(sample.to_reference())
 
+    # run record
+    if component_subset is None:
+        if run_mode == "SEQ":
+            component_subset = os.environ['BIFROST_COMPONENTS'].replace(" ", ",")
+        else:
+            component_subset = os.environ['BIFROST_COMPONENTS_ASM'].replace(" ", ",")
     run['component_subset'] = component_subset # this might just be for annotating in the db
-    #run["type"] = run_type
     run["path"] = os.getcwd()
+    run["type"] = run_type
+    run.samples = sample_list
 
+    # issues
     if run_mode == "SEQ":
-        run["type"] = run_type
         run["issues"] = {
             "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
             "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
@@ -263,7 +262,6 @@ def initialize_run(run: Run,
             "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
         }
     elif run_mode == "ASM":
-        run["type"] = "events"
         run["issues"] = {
             "duplicated_samples": list(metadata[metadata['duplicated_sample_names'] == True]['sample_name']),
             "changed_sample_names": list(metadata[metadata['changed_sample_names'] == True]['sample_name']),
@@ -271,8 +269,10 @@ def initialize_run(run: Run,
             "samples_without_contigs": list(metadata[metadata['haveAsm'] == False]['sample_name']),
             "samples_without_metadata": list(metadata[metadata['haveMetaData'] == False]['sample_name']),
         }
+    else:
+        pass
 
-    run.samples = [i.to_reference() for i in sample_list]
+    # insert run record
     run.save()
 
     with open("run.yaml", "w") as fh:
@@ -281,7 +281,7 @@ def initialize_run(run: Run,
         for sample in sample_list:
             fh.write(pprint.pformat(sample.json))
 
-    return (run, sample_list, run_mode)
+    return (run, sample_list)
 
 def replace_run_info_in_script(script: str, run: object) -> str:
     positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+_*[a-zA-Z]+"), script)
@@ -311,22 +311,30 @@ def replace_sample_info_in_script(script: str, sample: object) -> str:
             script = script.replace(item, level)
     return script
 
+def replace_components_list_in_script(script: str, component_subset: str) -> str:
+    component_subset_str = component_subset.replace(",", " ")
+    positions_to_replace = re.findall(re.compile(r"\$BIFROST_COMPONENTS_?[AMS]{0,3}"), script)
+    for item in positions_to_replace:
+        script = script.replace(item, component_subset_str)
+    return script
 
-def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per_sample_script_location: str, post_script_location: str) -> str:
+def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per_sample_script_location: str, post_script_location: str, component_subset: str) -> str:
     script = ""
-    if pre_script_location != None:
+    if pre_script_location is not None:
         with open(pre_script_location, "r") as pre_script_file:
             pre_script = pre_script_file.read()
             script = script + replace_run_info_in_script(pre_script, run)
 
-    if per_sample_script_location != None:
+    if per_sample_script_location is not None:
         with open(per_sample_script_location, "r") as per_sample_script_file:
             per_sample_script = per_sample_script_file.read()
         per_sample_script = replace_run_info_in_script(per_sample_script, run)
+        if component_subset is not None:
+            per_sample_script = replace_components_list_in_script(per_sample_script, component_subset)
         for sample in samples:
             script = script + replace_sample_info_in_script(per_sample_script, sample)
 
-    if post_script_location != None:
+    if post_script_location is not None:
         with open(post_script_location, "r") as post_script_file:
             post_script = post_script_file.read()
         script = script + replace_run_info_in_script(post_script, run)
@@ -349,20 +357,11 @@ def run_pipeline(args: object) -> None:
             run: Run = Run(name=args.run_name)
     else:
         run: Run = Run(name=args.run_name)
-    samples: List[Sample] = []
-    # Add existing samples from run.samples if they exist
-    for sample_reference in run.samples:
-        sample = Sample.load(sample_reference)
-        if sample is not None:
-            samples.append(sample)
-    # check if the run has an id and whether it exists in the db
-    client = pymongo.MongoClient(os.environ['BIFROST_DB_KEY'])
-    db = client.get_database()
-    runs = db.runs
-    run_name_matches = [str(i["_id"]) for i in runs.find({"name":run['name']})]
+
     if "_id" not in run.json or args.sample_subset is None:
+        # new or fully re-run Run
         if args.debug:
-            print(f"{run = }\n{samples = }")
+            print(f"{run = }\n")
 
         run, samples = initialize_run(run=run,
                                     component=args.component,
@@ -375,19 +374,22 @@ def run_pipeline(args: object) -> None:
         
         print(f"Run {run['name']} and samples added to DB")
     else:
+        # re-run specific samples from run
         print(f"Reprocessing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
         if args.sample_subset != None:
-            sample_subset = set(args.sample_subset.split(","))
-            sample_inds_to_keep = []
-            if len(samples) >= 1:
-                sample_names_orig = set([i['categories']['sample_info']['summary']['sample_name'] for i in samples])
-                missentered_subset_samples = ",".join([str(i) for i in (sample_subset - sample_names_orig)])
-                if len(missentered_subset_samples) > 0:
-                    print(f"{missentered_subset_samples} not present in run.")
-                for i,sample in enumerate(samples):
-                    if sample['categories']['sample_info']['summary']['sample_name'] in sample_subset:
-                        sample_inds_to_keep.append(i)
-            samples = [samples[i] for i in sample_inds_to_keep]
+            sample_subset = args.sample_subset.split(",")
+            missentered_subset_samples = []
+            samples: List[SampleReference] = []
+            if len(run.samples) >= 1:
+                ran_samples = [x['name'] for x in run.samples]
+                for entered_sample in sample_subset:
+                    entered_sample_id = run.sample_name_generator(entered_sample)
+                    if entered_sample_id not in ran_samples:
+                        missentered_subset_samples.append(entered_sample)
+                    else:
+                        samples.append(SampleReference(name = entered_sample_id))
+            if len(missentered_subset_samples) > 0:
+                print(f"{",".join(missentered_subset_samples)} not present in run.")
 
     if args.debug:
         print("run")
@@ -395,22 +397,14 @@ def run_pipeline(args: object) -> None:
         print("samples")
         print(samples)
 
-    if run_mode == "SEQ":
-        script = generate_run_script(
-            run,
-            samples,
-            args.pre_script,
-            args.per_sample_script,
-            args.post_script)
-
-    # for now try with the same scripts, but make placeholder for additional pre,per and post
-    if run_mode == "ASM":
-        script = generate_run_script(
-            run,
-            samples,
-            args.pre_script,
-            args.per_sample_script,
-            args.post_script)
+    # per shell scripts are different for SEQ and ASM
+    script = generate_run_script(
+        run,
+        samples,
+        args.pre_script,
+        args.per_sample_script,
+        args.post_script,
+        args.component_subset)
         
     with open("run_script.sh", "w") as fh:
         fh.write(script)
