@@ -25,57 +25,50 @@ import gzip
 os.umask(0o002)
 
 def parse_directory(directory: str, 
+                    run_mode: str, 
                     file_name_list: List[Tuple[str,str]], 
                     run_metadata: pd.DataFrame, 
-                    run_metadata_filename: str) -> Tuple[Dict, List[str], str]:
+                    run_metadata_filename: str) -> Tuple[Dict, List[str]]:
     
     all_files: Set[str] = set(os.listdir(directory))
     unused_files: Set[str] = set(all_files)
     sample_dict = {}
-        
-    bifrost_mode = None #Either SEQ or ASM
     
     #define extensions for what is assumed to be unique to sequence reads and assemblies to differentiate in metadata
-    seq_reads_ext = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
-    asm_ext = {".fa", ".fasta", ".fa.gz", ".fasta.gz", ".fas", ".fas.gz", ".fna", ".fna.gz"}
+    sequence_ext = [".fq", ".fastq"]
+    if run_mode == "ASM":
+        sequence_ext = [".fa", ".fasta", ".fas", ".fna"]
 
     for sample_files in file_name_list:
         # Downstream it is assumed that there are exactly two sequence files, 
         # so we test and complain here if that is not the case.
 
-        file_extensions = set()
         base, ext = os.path.splitext(sample_files[0])  # Extract first extension
         
-        if ext == ".gz":  # Handle double extensions like .fastq.gz
+        if ext == ".gz":  # Handle compressed files
             base, ext = os.path.splitext(base)  # Extract real file type before .gz
-            file_extensions.add(ext.lower())  # Normalize to lowercase
-        else:
-            file_extensions.add(ext.lower())
 
-        # checking if sequence reads
-        if file_extensions.issubset(seq_reads_ext):
+        if ext.lower() in sequence_ext:
             # For paired-end sequence read files - ensure exactly two files exist
-            if len(sample_files) != 2:
-                print("Sample files:\n"+"\n".join(sample_files),file=sys.stderr)
-                raise ValueError(f"Error: Sample {sample_files} has {len(sample_files)} sequence files, it must have exactly two read files")
-            bifrost_mode = "SEQ"
-        elif file_extensions.issubset(asm_ext):
-            if len(sample_files) != 1:
-                raise ValueError(f"Error: Sample {sample_files} has {len(sample_files)} assembly files, it must have exactly one assembly file.")
-            bifrost_mode = "ASM"
+            if run_mode == "SEQ":
+                if len(sample_files) != 2:
+                    print("Sample files:\n"+"\n".join(sample_files),file=sys.stderr)
+                    raise ValueError(f"Error: Sample {sample_files} has {len(sample_files)} sequence files, it must have exactly two read files")
+            else:
+                # ASM
+                if len(sample_files) != 1:
+                    raise ValueError(f"Error: Sample {sample_files} has {len(sample_files)} assembly files, it must have exactly one assembly file.")
+        else:
+            raise ValueError(f"Error: Sample {sample_files[0]} extension {ext} is not compatible with bifrost run mode {run_mode} {sequence_ext}")
 
         if all_files.issuperset(sample_files):
             unused_files.difference_update(sample_files)
             sample_name = run_metadata.loc[lambda df: df["filenames"] == sample_files, "sample_name"]
             for n in sample_name:
                 sample_dict[n] = list(sample_files)
-    
-    if bifrost_mode is None:
-        raise ValueError("Unable to create run_script for pipeline initiation due to no valid sequencing or assembly files detected.")
 
     unused_files.discard(run_metadata_filename)
-    return (sample_dict, list(unused_files), bifrost_mode)
-
+    return (sample_dict, list(unused_files))
 
 def format_metadata(run_metadata: TextIO, 
                     rename_column_file: TextIO = None) -> pd.DataFrame:
@@ -140,13 +133,14 @@ def initialize_run(run: Run,
                    input_folder: str = ".",
                    run_metadata: str = "run_metadata.txt", 
                    run_type: str = None, 
+                   run_mode: str = "SEQ",
                    rename_column_file: str = None,
                    component_subset: str = "ccc,aaa,bbb"
                    ) -> Tuple[Run, List[Sample], str]:
     
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
-    sample_dict, unused_files, run_mode = parse_directory(input_folder, file_names_in_metadata, metadata, run_metadata)
+    sample_dict, unused_files = parse_directory(input_folder, run_mode, file_names_in_metadata, metadata, run_metadata)
 
     run_reference = run.to_reference()
     sample_list: List(Sample) = []
@@ -370,14 +364,14 @@ def run_pipeline(args: object) -> None:
         if args.debug:
             print(f"{run = }\n{samples = }")
 
-        run, samples, run_mode = initialize_run(run=run,
-                                                samples=samples,
-                                                component=args.component,
-                                                input_folder=args.reads_folder,
-                                                run_metadata=args.run_metadata,
-                                                run_type=args.run_type,
-                                                rename_column_file=args.run_metadata_column_remap,
-                                                component_subset=args.component_subset)
+        run, samples = initialize_run(run=run,
+                                    component=args.component,
+                                    input_folder=args.reads_folder,
+                                    run_metadata=args.run_metadata,
+                                    run_type=args.run_type,
+                                    run_mode=args.run_mode,
+                                    rename_column_file=args.run_metadata_column_remap,
+                                    component_subset=args.component_subset)
         
         print(f"Run {run['name']} and samples added to DB")
     else:
