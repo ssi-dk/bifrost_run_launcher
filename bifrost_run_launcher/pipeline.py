@@ -154,17 +154,15 @@ def initialize_run(run: Run,
     for sample_name in sample_dict:
         metadata.loc[metadata["sample_name"] == sample_name, "haveMetaData"] = True
 
-        sample = Sample(name=run.sample_name_generator(sample_name))
-        sample["run"] = run_reference
-        sample["display_name"] = sample_name
-        sample_exists = False
-
-        for i in range(len(samples)):
-            if samples[i]["name"] == sample_name:
-                print(f"Sample {sample_name} exists")
-                sample_exists = True
-                sample = samples[i]
+        # existing sample lookup
+        sequence_id = run.sample_name_generator(sample_name)
+        sample = Sample.load(SampleReference(name = sequence_id))
+        if sample is None:
+            sample = Sample(name = sequence_id)
+            sample["run"] = run_reference
+            sample["display_name"] = sample_name
         
+        # sample db record
         if run_mode == "SEQ":
             metadata.loc[metadata["sample_name"] == sample_name, "haveReads"] = True
             
