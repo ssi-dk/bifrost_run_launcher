@@ -318,7 +318,7 @@ def replace_components_list_in_script(script: str, component_subset: str) -> str
         script = script.replace(item, component_subset_str)
     return script
 
-def generate_run_script(run: Run, samples: Sample, pre_script_location: str, per_sample_script_location: str, post_script_location: str, component_subset: str) -> str:
+def generate_run_script(run: Run, samples: List[SampleReference], pre_script_location: str, per_sample_script_location: str, post_script_location: str, component_subset: str) -> str:
     script = ""
     if pre_script_location is not None:
         with open(pre_script_location, "r") as pre_script_file:
