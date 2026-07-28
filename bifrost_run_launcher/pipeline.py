@@ -28,8 +28,7 @@ os.umask(0o002)
 def parse_directory(directory: str, 
                     run_mode: str, 
                     file_name_list: List[Tuple[str,str]], 
-                    run_metadata: pd.DataFrame, 
-                    run_metadata_filename: str) -> Tuple[Dict, List[str]]:
+                    run_metadata: pd.DataFrame) -> Tuple[Dict, List[str]]:
     
     all_files: Set[str] = set(os.listdir(directory))
     unused_files: Set[str] = set(all_files)
@@ -67,9 +66,11 @@ def parse_directory(directory: str,
             sample_name = run_metadata.loc[lambda df: df["filenames"] == sample_files, "sample_name"]
             for n in sample_name:
                 sample_dict[n] = list(sample_files)
+        else:
+            print(f"[WARNING] Sample files {sample_files} not in {directory}",file=sys.stderr)
 
-    unused_files.discard(run_metadata_filename)
-    return (sample_dict, list(unused_files))
+    unused_seq_files = [ x for x in unused_files if not os.path.splitext(x)[1] in ['.tsv', '.xlsx'] ]
+    return (sample_dict, unused_seq_files)
 
 def format_metadata(run_metadata: TextIO, 
                     rename_column_file: TextIO = None) -> pd.DataFrame:
