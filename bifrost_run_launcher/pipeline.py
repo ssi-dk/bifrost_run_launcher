@@ -154,7 +154,7 @@ def initialize_run(run: Run,
         sample = Sample.load(SampleReference(name = sequence_id))
         if sample is None:
             sample = Sample(name = sequence_id)
-            sample["run"] = run_reference
+            sample["run"] = run_reference.json
             sample["display_name"] = sample_name
         
         # sample db record
