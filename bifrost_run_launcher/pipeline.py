@@ -141,7 +141,7 @@ def initialize_run(run: Run,
     
     metadata = format_metadata(run_metadata, rename_column_file)
     file_names_in_metadata = get_file_pairs(metadata)
-    sample_dict, unused_files = parse_directory(input_folder, run_mode, file_names_in_metadata, metadata, run_metadata)
+    sample_dict, unused_files = parse_directory(input_folder, run_mode, file_names_in_metadata, metadata)
 
     run_reference = run.to_reference()
     sample_list: List[SampleReference] = []
