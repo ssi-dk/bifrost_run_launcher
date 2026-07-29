@@ -9,12 +9,16 @@ import traceback
 import pandas as pd
 import json
 import sys
+from bifrostlib import common
 from bifrostlib.datahandling import RunReference
 from bifrostlib.datahandling import Run
 from bifrostlib.datahandling import Sample
 from bifrostlib.datahandling import SampleReference
 from bifrostlib.datahandling import Category
 from bifrostlib.datahandling import Component
+from bifrostlib.datahandling import ComponentReference
+from bifrostlib.datahandling import SampleComponent
+from bifrostlib.datahandling import SampleComponentReference
 import pprint
 import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple,Optional
@@ -87,7 +91,6 @@ def format_metadata(run_metadata: TextIO,
         # Drop unnamed columns (e.g., empty trailing columns from Excel)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         
-        
         samples_no_index = df[df["sample_name"].isna()].index # drop unnamed samples
         samples_no_files_index = df[df["filenames"].isnull()].index # drop samples missing reads
         idx_to_drop = samples_no_index.union(samples_no_files_index)
@@ -123,7 +126,7 @@ def format_metadata(run_metadata: TextIO,
             print(traceback.format_exc(), file=sys.stderr)
         raise ValueError(f"Bad metadata and/or rename column file: {e}") from e
 
-def get_sample_names(metadata: pd.DataFrame) -> List["str"]:
+def get_sample_names(metadata: pd.DataFrame) -> List[str]:
     return list(set(metadata["sample_name"].tolist()))
 
 def get_file_pairs(metadata: pd.DataFrame) -> List[Tuple[str,str]]:
@@ -156,6 +159,9 @@ def initialize_run(run: Run,
             sample = Sample(name = sequence_id)
             sample["run"] = run_reference.json
             sample["display_name"] = sample_name
+        else:
+            # all components are re-run even for existing samples
+            sample = initialize_sample_properties(sample, None)
         
         # sample db record
         if run_mode == "SEQ":
@@ -242,13 +248,14 @@ def initialize_run(run: Run,
             print(f"Sample {sample_name} exists - reusing")
         sample_list.append(sample.to_reference())
 
-    # run record
+    # for Run record
     if component_subset is None:
+        # all components from env var
         if run_mode == "SEQ":
             component_subset = os.environ['BIFROST_COMPONENTS'].replace(" ", ",")
         else:
             component_subset = os.environ['BIFROST_COMPONENTS_ASM'].replace(" ", ",")
-    run['component_subset'] = component_subset # this might just be for annotating in the db
+    run['component_subset'] = component_subset
     run["path"] = os.getcwd()
     run["type"] = run_type
     run.samples = sample_list
@@ -283,6 +290,60 @@ def initialize_run(run: Run,
             fh.write(pprint.pformat(sample.json))
 
     return (run, sample_list)
+
+def initialize_sample_properties(sample: Sample, component_names: List[str] | None) -> Sample:
+    # reset Sample record
+    if component_names is None:
+        sample["components"] = []
+        sample["categories"] = {}
+    else:
+        # remove those re-run
+        # ?WHY Should components with different versions be also removed?
+        components_to_keep: List[Dict] = []
+        for comp in sample["components"]:
+            if comp['name'].replace('__5e385d4', '') not in component_names:
+                components_to_keep.append(comp)
+        sample["components"] = components_to_keep
+        categories_to_keep: List[Category] = []
+        for cat_name in sample["categories"]:
+            category: Category = sample.get_category(cat_name)
+            if category['component']:
+                if category['component']['name'].replace('__5e385d4', '') not in component_names:
+                    categories_to_keep.append(category)
+            else:
+                #mainly serotypers
+                categories_to_keep.append(category)
+        sample["categories"] = {}
+        for kept_cat in categories_to_keep:
+            sample.set_category(kept_cat)
+    return sample
+
+def initialize_component_statuses(run: Run, samples: List[SampleReference], component_names: List[str]) -> None:
+    for component_name in component_names:
+        if component_name.startswith("cge_mlst"):
+            component_name = component_name + "__5e385d4"
+        component_ref = ComponentReference(name=component_name)
+        component: Component = Component.load(reference=component_ref)
+        if component is None:
+            raise Exception(f"invalid component passed {component_ref}")
+        for sample_ref in samples:
+            sample: Sample = Sample.load(sample_ref)
+            if sample is None:
+                raise Exception(f"invalid sample passed {sample_ref}")
+            samplecomponent_ref = SampleComponentReference(
+                name=SampleComponentReference.name_generator(sample.to_reference(), component.to_reference())
+            )
+            samplecomponent = SampleComponent.load(samplecomponent_ref)
+            if samplecomponent is None:
+                samplecomponent = SampleComponent(
+                    sample_reference=sample.to_reference(),
+                    component_reference=component.to_reference()
+                )
+            # reset result and set status to queued
+            samplecomponent["results"] = {}
+            samplecomponent["categories"] = {}
+            common.set_status_and_save(sample, samplecomponent, "Queued")
+    return
 
 def replace_run_info_in_script(script: str, run: object) -> str:
     positions_to_replace = re.findall(re.compile(r"\$run.[a-zA-Z]+_*[a-zA-Z]+"), script)
@@ -352,17 +413,25 @@ def run_pipeline(args: object) -> None:
     print(f"{run_reference.json = }")
     if args.re_run:
         run: Run = Run.load(run_reference)
-        if run is None and args.run_id is not None: # mistyped id
+        if run is None and args.run_id is not None:
+            # mistyped id
             raise ValueError(f"_id={args.run_id} not in db.")
         elif run is None:
+            # new Run
             run: Run = Run(name=args.run_name)
+            run.save()
     else:
         run: Run = Run(name=args.run_name)
+        run.save()
 
+    component_names = None
     if "_id" not in run.json or args.sample_subset is None:
         # new or fully re-run Run
         if args.debug:
             print(f"{run = }\n")
+        
+        if args.sample_subset is not None:
+            print(f"[WARNING] {",".join(missentered_subset_samples)} not present in run.")
 
         run, samples = initialize_run(run=run,
                                     component=args.component,
@@ -373,11 +442,11 @@ def run_pipeline(args: object) -> None:
                                     rename_column_file=args.run_metadata_column_remap,
                                     component_subset=args.component_subset)
         
-        print(f"Run {run['name']} and samples added to DB")
-    else:
+        print(f"Run {run['name']} and samples newly added to DB")
+    elif args.sample_subset is not None:
         # re-run specific samples from run
-        print(f"Reprocessing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
-        if args.sample_subset != None:
+        print(f"Re-processing samples from run {run['name']}") # we only want to subset samples from a pre-existing run
+        if args.sample_subset is not None:
             sample_subset = args.sample_subset.split(",")
             missentered_subset_samples = []
             samples: List[SampleReference] = []
@@ -389,8 +458,23 @@ def run_pipeline(args: object) -> None:
                         missentered_subset_samples.append(entered_sample)
                     else:
                         samples.append(SampleReference(name = entered_sample_id))
+            else:
+                raise ValueError(f"Wrong input: sample_subset can not be used with new Run, modify metadata sheet instead")
             if len(missentered_subset_samples) > 0:
-                print(f"{",".join(missentered_subset_samples)} not present in run.")
+                print(f"[WARNING] {",".join(missentered_subset_samples)} not present in run.")
+        
+        if args.re_run_components:
+            # re-run specific components only for these samples
+            if args.component_subset is None:
+                raise ValueError(f"Wrong input: component_subset can not be empty if re_run_components flag used")
+            component_names = [re.sub(r"_v(\d)", r"__v\1", x) for x in args.component_subset.replace("bifrost_", "").split(",")]
+
+        for sample_ref in samples:
+            sample = Sample.load(sample_ref)
+            sample = initialize_sample_properties(sample, component_names)
+            sample.save()
+    else:
+        pass
 
     if args.debug:
         print("run")
@@ -398,20 +482,34 @@ def run_pipeline(args: object) -> None:
         print("samples")
         print(samples)
 
-    # per shell scripts are different for SEQ and ASM
-    script = generate_run_script(
-        run,
-        samples,
-        args.pre_script,
-        args.per_sample_script,
-        args.post_script,
-        args.component_subset)
-        
-    with open("run_script.sh", "w") as fh:
-        fh.write(script)
+    # make a list for all the components to run
+    if component_names is None:
+        if args.component_subset is None:
+            if args.run_mode == "SEQ":
+                component_list = os.environ['BIFROST_COMPONENTS'].replace(" ", ",")
+            else:
+                component_list = os.environ['BIFROST_COMPONENTS_ASM'].replace(" ", ",")
+        else:
+            component_list = args.component_subset
+        component_names = [re.sub(r"_v(\d)", r"__v\1", x) for x in component_list.replace("bifrost_", "").split(",")]
 
-    print(f"Done with output directory: {args.outdir}")
-    print("Done, to run execute bash run_script.sh")
+    # clean up and initialize statuses for samples, sample_components that are being run
+    initialize_component_statuses(run, samples, component_names)
 
-# if __name__ == "__main__":
-#     parse_args(sys.argv[1:])
+    if not args.re_run_components:
+        # per shell scripts are different for SEQ and ASM
+        script = generate_run_script(
+            run,
+            samples,
+            args.pre_script,
+            args.per_sample_script,
+            args.post_script,
+            args.component_subset)
+            
+        with open("run_script.sh", "w") as fh:
+            fh.write(script)
+
+        print(f"Done with output directory: {args.outdir}")
+        print("Done, to run execute bash run_script.sh")
+    else:
+        print(f"Done with samples {args.sample_subset} and \ncomponents {args.component_subset}")
