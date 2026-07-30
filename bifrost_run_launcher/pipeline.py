@@ -4,7 +4,6 @@ Initialization program for paired end Illumina reads
 """
 import re
 import os
-from sys import stderr
 import traceback
 import pandas as pd
 import json
@@ -431,7 +430,7 @@ def run_pipeline(args: object) -> None:
             print(f"{run = }\n")
         
         if args.sample_subset is not None:
-            print(f"[WARNING] {",".join(missentered_subset_samples)} not present in run.")
+            print(f"[WARNING] {",".join(missentered_subset_samples)} not present in run.", file=sys.stderr)
 
         run, samples = initialize_run(run=run,
                                     component=args.component,
@@ -461,7 +460,7 @@ def run_pipeline(args: object) -> None:
             else:
                 raise ValueError(f"Wrong input: sample_subset can not be used with new Run, modify metadata sheet instead")
             if len(missentered_subset_samples) > 0:
-                print(f"[WARNING] {",".join(missentered_subset_samples)} not present in run.")
+                print(f"[WARNING] {",".join(missentered_subset_samples)} not present in run.", file=sys.stderr)
         
         if args.re_run_components:
             # re-run specific components only for these samples
@@ -513,3 +512,4 @@ def run_pipeline(args: object) -> None:
         print("Done, to run execute bash run_script.sh")
     else:
         print(f"Done with samples {args.sample_subset} and \ncomponents {args.component_subset}")
+    return
