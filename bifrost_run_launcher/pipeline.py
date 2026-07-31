@@ -22,9 +22,7 @@ import pprint
 import pymongo
 from typing import List, Set, Dict, TextIO, Pattern, Tuple,Optional
 from pymongo.errors import DuplicateKeyError
-from Bio import SeqIO
 from datetime import datetime
-import gzip
 
 os.umask(0o002)
 
@@ -333,6 +331,11 @@ def initialize_component_statuses(run: Run, samples: List[SampleReference], comp
                 name=SampleComponentReference.name_generator(sample.to_reference(), component.to_reference())
             )
             samplecomponent = SampleComponent.load(samplecomponent_ref)
+            if samplecomponent is not None:
+                if sample_ref['_id'] != samplecomponent.sample['_id']:
+                    # linking to non-existing sample
+                    samplecomponent.delete()
+                    samplecomponent = SampleComponent.load(samplecomponent_ref)
             if samplecomponent is None:
                 samplecomponent = SampleComponent(
                     sample_reference=sample.to_reference(),
