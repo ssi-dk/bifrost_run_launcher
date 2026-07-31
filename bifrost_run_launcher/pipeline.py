@@ -332,7 +332,7 @@ def initialize_component_statuses(run: Run, samples: List[SampleReference], comp
             )
             samplecomponent = SampleComponent.load(samplecomponent_ref)
             if samplecomponent is not None:
-                if sample_ref['_id'] != samplecomponent.sample['_id']:
+                if sample['_id'] != samplecomponent.sample['_id']:
                     # linking to non-existing sample
                     samplecomponent.delete()
                     samplecomponent = SampleComponent.load(samplecomponent_ref)
