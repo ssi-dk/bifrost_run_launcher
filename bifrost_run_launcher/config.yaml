@@ -2,19 +2,11 @@
 #   Values in <value> are modified by CI/CD automation. Please see github/workflows for more info
 #-Basic info----------------------------------------------------------------------------------------
 display_name: run_launcher
-name: run_launcher__v2.3.0
+name: run_launcher__v2.4.0
 version:
   schema: ["v2_1_0"]
-  code: v2.3.0
-note: >
-  Currently run components aren't set up properly (probably want to call them collection components)
-  values here are not being used properly. I think the idea for run components is that you don't 
-  compare run components against one another. They are contextual to themselves. Thus options here
-  can be flexible compared to sample components which are designed to be compared to one another.
-  Maybe this just needs to be named as two different types. One for comparison and one which is not 
-  and in the case where its not meant to be compared the interesting thing about the component 
-  (pipeline) as in this case is that it sets things up for others. Not that it creates an 
-  interesting result on it's own
+  code: v2.4.0
+note: 
 #---------------------------------------------------------------------------------------------------
 
 #-Details-------------------------------------------------------------------------------------------
@@ -27,18 +19,17 @@ details:
 #-Install-------------------------------------------------------------------------------------------
 install:
   path: # Set by install program
-  dockerfile: docker://ssidk/bifrost_run_launcher
 # None
 #---------------------------------------------------------------------------------------------------
 
 #-Category info-------------------------------------------------------------------------------------
-category: []
+category: [sample_info, paired_reads, events, species_detection]
 #---------------------------------------------------------------------------------------------------
 
 #-Options-------------------------------------------------------------------------------------------
 options:
   default_pre: "pre.sh"
-  default_per: "per_sample.sh"
+  default_per: "per.sh"
   default_post: "post.sh"
   default_meta: "run_metadata.tsv"
   default_reads: "samples"
@@ -66,9 +57,10 @@ requirements:
 
 #-DB Value changes (excluding component output)-----------------------------------------------------
 db_values_changes:
-  files: []
   run:
     # new run object
   sample:
     # a new sample object for each one in the run
+  sample_component:
+    # a new sample_components for each combination
 #---------------------------------------------------------------------------------------------------
